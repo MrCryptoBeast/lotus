@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/big"
+
+	big2 "github.com/filecoin-project/go-state-types/big"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
+	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -84,6 +88,20 @@ var minerTypesCmd = &cli.Command{
 		}
 
 		typeMap := make(map[abi.RegisteredPoStProof]int64)
+		pa, err := tree.GetActor(power.Address)
+		if err != nil {
+			return err
+		}
+
+		ps, err := power.Load(store, pa)
+		if err != nil {
+			return err
+		}
+
+		dz := power.Claim{
+			RawBytePower:    abi.NewStoragePower(0),
+			QualityAdjPower: abi.NewStoragePower(0),
+		}
 
 		err = tree.ForEach(func(addr address.Address, act *types.Actor) error {
 			if act.Code == builtin4.StorageMinerActorCodeID {
@@ -97,8 +115,16 @@ var minerTypesCmd = &cli.Command{
 					return err
 				}
 
-				if mi.WindowPoStProofType < abi.RegisteredPoStProof_StackedDrgWindow32GiBV1 {
-					fmt.Println(addr)
+				if mi.WindowPoStProofType == abi.RegisteredPoStProof_StackedDrgWindow64GiBV1 {
+					mp, f, err := ps.MinerPower(addr)
+					if err != nil {
+						return err
+					}
+
+					if f && mp.RawBytePower.Cmp(big.NewInt(10<<40)) >= 0 && mp.RawBytePower.Cmp(big.NewInt(20<<40)) < 0 {
+						dz.RawBytePower = big2.Add(dz.RawBytePower, mp.RawBytePower)
+						dz.QualityAdjPower = big2.Add(dz.QualityAdjPower, mp.QualityAdjPower)
+					}
 				}
 
 				c, f := typeMap[mi.WindowPoStProofType]
@@ -117,6 +143,8 @@ var minerTypesCmd = &cli.Command{
 		for k, v := range typeMap {
 			fmt.Println("Type:", k, " Count: ", v)
 		}
+
+		fmt.Println("Mismatched power (raw, QA): ", dz.RawBytePower, " ", dz.QualityAdjPower)
 
 		return nil
 	},
