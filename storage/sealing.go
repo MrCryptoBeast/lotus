@@ -59,6 +59,14 @@ func (m *Miner) TerminatePending(ctx context.Context) ([]abi.SectorID, error) {
 	return m.sealing.TerminatePending(ctx)
 }
 
+func (m *Miner) SectorPreCommitFlush(ctx context.Context) (*cid.Cid, error) {
+	return m.sealing.SectorPreCommitFlush(ctx)
+}
+
+func (m *Miner) SectorPreCommitPending(ctx context.Context) ([]abi.SectorID, error) {
+	return m.sealing.SectorPreCommitPending(ctx)
+}
+
 func (m *Miner) MarkForUpgrade(id abi.SectorNumber) error {
 	return m.sealing.MarkForUpgrade(id)
 }

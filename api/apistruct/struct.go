@@ -659,6 +659,10 @@ type StorageMinerStruct struct {
 
 		SectorTerminatePending func(p0 context.Context) ([]abi.SectorID, error) `perm:"admin"`
 
+		SectorPreCommitFlush func(p0 context.Context) (*cid.Cid, error) `perm:"admin"`
+
+		SectorPreCommitPending func(p0 context.Context) ([]abi.SectorID, error) `perm:"admin"`
+
 		SectorsList func(p0 context.Context) ([]abi.SectorNumber, error) `perm:"read"`
 
 		SectorsListInStates func(p0 context.Context, p1 []api.SectorState) ([]abi.SectorNumber, error) `perm:"read"`
