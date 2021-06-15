@@ -385,5 +385,9 @@ func pledgeSectors(t *testing.T, ctx context.Context, miner TestStorageNode, n, 
 
 		build.Clock.Sleep(100 * time.Millisecond)
 		fmt.Printf("WaitSeal: %d %+v\n", len(toCheck), states)
+
+		if len(states) == 1 && states[api.SectorState(sealing.GetTicket)] == 1 {
+			t.Fatal("sector got stuck in GetTicket")
+		}
 	}
 }
