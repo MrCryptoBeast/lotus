@@ -659,7 +659,7 @@ func TestAddPiece512M(t *testing.T) {
 			Number: 0,
 		},
 		ProofType: abi.RegisteredSealProof_StackedDrg512MiBV1_1,
-	}, nil, sz, io.LimitReader(r, int64(sz)))
+	}, nil, sz, io.LimitReader(r, int64(sz)), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -702,7 +702,7 @@ func BenchmarkAddPiece512M(b *testing.B) {
 				Number: abi.SectorNumber(i),
 			},
 			ProofType: abi.RegisteredSealProof_StackedDrg512MiBV1_1,
-		}, nil, sz, io.LimitReader(&nullreader.Reader{}, int64(sz)))
+		}, nil, sz, io.LimitReader(&nullreader.Reader{}, int64(sz)), "")
 		if err != nil {
 			b.Fatal(err)
 		}

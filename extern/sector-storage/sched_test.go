@@ -47,6 +47,34 @@ type schedTestWorker struct {
 	session uuid.UUID
 }
 
+func (s *schedTestWorker) AllowableRange(ctx context.Context, task sealtasks.TaskType) (bool, error) {
+	panic("implement me")
+}
+
+func (s *schedTestWorker) GetWorkerInfo(ctx context.Context) storiface.WorkerParams {
+	panic("implement me")
+}
+
+func (s *schedTestWorker) AddStore(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error {
+	panic("implement me")
+}
+
+func (s *schedTestWorker) DeleteStore(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error {
+	panic("implement me")
+}
+
+func (s *schedTestWorker) SetWorkerParams(ctx context.Context, key string, val string) error {
+	panic("implement me")
+}
+
+func (s *schedTestWorker) GetWorkerGroup(ctx context.Context) string {
+	panic("implement me")
+}
+
+func (s *schedTestWorker) HasRemoteC2(ctx context.Context) (bool, error) {
+	panic("implement me")
+}
+
 func (s *schedTestWorker) SealPreCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (storiface.CallID, error) {
 	panic("implement me")
 }
@@ -204,7 +232,7 @@ func TestSched(t *testing.T) {
 			done := make(chan struct{})
 			rm.done[taskName] = done
 
-			sel := newAllocSelector(index, storiface.FTCache, storiface.PathSealing)
+			sel := newAllocSelector(index, storiface.FTCache, storiface.PathSealing, taskType)
 
 			rm.wg.Add(1)
 			go func() {
