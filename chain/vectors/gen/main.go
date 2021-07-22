@@ -65,7 +65,7 @@ func MakeMessageSigningVectors() []vectors.MessageSigningVector {
 	if err != nil {
 		panic(err)
 	}
-	bki, err := w.WalletExport(context.Background(), blsk)
+	bki, err := w.WalletExport(context.Background(), blsk, "")
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +89,7 @@ func MakeMessageSigningVectors() []vectors.MessageSigningVector {
 	if err != nil {
 		panic(err)
 	}
-	ski, err := w.WalletExport(context.Background(), secpk)
+	ski, err := w.WalletExport(context.Background(), secpk, "")
 	if err != nil {
 		panic(err)
 	}

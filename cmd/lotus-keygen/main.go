@@ -50,7 +50,7 @@ func main() {
 			return err
 		}
 
-		ki, err := w.WalletExport(cctx.Context, kaddr)
+		ki, err := w.WalletExport(cctx.Context, kaddr, "")
 		if err != nil {
 			return err
 		}

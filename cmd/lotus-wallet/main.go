@@ -53,7 +53,7 @@ func main() {
 			},
 		},
 
-		Commands: local,
+		Commands: append(local, lcli.GetWalletCmd()...),
 	}
 	app.Setup()
 

@@ -16,11 +16,13 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/crypto"
+
 	//"github.com/filecoin-project/specs-actors/actors/builtin"
 
 	//"github.com/filecoin-project/lotus/chain/actors"
 	//"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/lib/tablewriter"
 )
 
@@ -266,12 +268,12 @@ var walletExport = &cli.Command{
 	Name:      "export",
 	Usage:     "export keys",
 	ArgsUsage: "[address]",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "passwd",
-			Usage: "unlock wallet with passwd",
-		},
-	},
+	// Flags: []cli.Flag{
+	// 	&cli.StringFlag{
+	// 		Name:  "passwd",
+	// 		Usage: "unlock wallet with passwd",
+	// 	},
+	// },
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -290,7 +292,11 @@ var walletExport = &cli.Command{
 			}
 		}()
 
-		passwd := cctx.String("passwd")
+		// passwd := cctx.String("passwd")
+		passwd := wallet.Prompt("Enter your Password:\n")
+		if passwd == "" {
+			return xerrors.Errorf("Must enter your passwd")
+		}
 		addrs, err := api.WalletListEncryption(ctx)
 		if err != nil {
 			return err
@@ -518,11 +524,11 @@ var walletDelete = &cli.Command{
 	Name:      "delete",
 	Usage:     "Delete an account from the wallet",
 	ArgsUsage: "<address> ",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "passwd",
-			Usage: "unlock wallet with passwd",
-		},
+	Flags:     []cli.Flag{
+		// &cli.StringFlag{
+		// 	Name:  "passwd",
+		// 	Usage: "unlock wallet with passwd",
+		// },
 	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
@@ -536,7 +542,11 @@ var walletDelete = &cli.Command{
 			return fmt.Errorf("must specify address to delete")
 		}
 
-		passwd := cctx.String("passwd")
+		// passwd := cctx.String("passwd")
+		passwd := wallet.Prompt("Enter your Password:\n")
+		if passwd == "" {
+			return xerrors.Errorf("Must enter your passwd")
+		}
 		addrs, err := api.WalletListEncryption(ctx)
 		if err != nil {
 			return err
@@ -762,12 +772,12 @@ var walletMarketAdd = &cli.Command{
 var walletUnlock = &cli.Command{
 	Name:  "unlock",
 	Usage: "Unlock wallet",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "passwd",
-			Usage: "unlock wallet with passwd",
-		},
-	},
+	// Flags: []cli.Flag{
+	// 	&cli.StringFlag{
+	// 		Name:  "passwd",
+	// 		Usage: "unlock wallet with passwd",
+	// 	},
+	// },
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -775,8 +785,8 @@ var walletUnlock = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-
-		passwd := cctx.String("passwd")
+		passwd := wallet.Prompt("Enter your Password:\n")
+		// passwd := cctx.String("passwd")
 		if passwd == "" {
 			return xerrors.Errorf("Must enter your passwd")
 		}
@@ -815,10 +825,10 @@ var walletChangePasswd = &cli.Command{
 	Name:  "changepasswd",
 	Usage: "Change wallet passwd",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "passwd",
-			Usage: "unlock wallet with passwd",
-		},
+		// &cli.StringFlag{
+		// 	Name:  "passwd",
+		// 	Usage: "unlock wallet with passwd",
+		// },
 	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
@@ -828,7 +838,8 @@ var walletChangePasswd = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
-		passwd := cctx.String("passwd")
+		// passwd := cctx.String("passwd")
+		passwd := wallet.Prompt("Enter your Password:\n")
 		if passwd == "" {
 			return xerrors.Errorf("Must enter your passwd")
 		}
