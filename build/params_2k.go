@@ -5,6 +5,7 @@ package build
 import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
+	builtin2 "github.com/filecoin-project/specs-actors/v2/actors/builtin"
 )
 
 const BootstrappersFile = ""
@@ -22,16 +23,17 @@ const UpgradeTapeHeight = -4
 const UpgradeHogwartsHeight = -5
 const UpgradeSiriusHeight = -6
 
-var UpgradeActorsV2Height = abi.ChainEpoch(10)
-var UpgradeLiftoffHeight = abi.ChainEpoch(-5)
+var UpgradeActorsV2Height = abi.ChainEpoch(10_000_001)
 
-const UpgradeKumquatHeight = 15
-const UpgradeCalicoHeight = 20
-const UpgradePersianHeight = 25
-const UpgradeOrangeHeight = 27
-const UpgradeClausHeight = 30
+const UpgradeLiftoffHeight = 10_000_003
 
-const UpgradeActorsV3Height = 35
+const UpgradeKumquatHeight = 10_000_004
+const UpgradeCalicoHeight = 10_000_005
+const UpgradePersianHeight = UpgradeCalicoHeight + (builtin2.EpochsInHour * 60)
+const UpgradeOrangeHeight = UpgradePersianHeight + 1
+const UpgradeClausHeight = UpgradeOrangeHeight + 1
+
+const UpgradeActorsV3Height = abi.ChainEpoch(UpgradeClausHeight + 1)
 
 var DrandSchedule = map[abi.ChainEpoch]DrandEnum{
 	0: DrandMainnet,
