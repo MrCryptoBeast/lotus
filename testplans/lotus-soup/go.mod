@@ -40,4 +40,6 @@ require (
 // This will work in all build modes: docker:go, exec:go, and local go build.
 // On docker:go and exec:go, it maps to /extra/filecoin-ffi, as it's picked up
 // as an "extra source" in the manifest.
-replace github.com/filecoin-project/filecoin-ffi => ../../extern/filecoin-ffi
+replace github.com/filecoin-project/filecoin-ffi => ../../../filecoin-ffi
+
+replace github.com/filecoin-project/specs-actors => ../../../specs-actors
