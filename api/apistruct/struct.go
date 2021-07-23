@@ -159,6 +159,7 @@ type FullNodeStruct struct {
 		WalletImport          func(context.Context, *types.KeyInfo) (address.Address, error)                               `perm:"admin"`
 		WalletDelete          func(context.Context, address.Address, string) error                                         `perm:"write"`
 		WalletValidateAddress func(context.Context, string) (address.Address, error)                                       `perm:"read"`
+		WalletAddPasswd       func(context.Context, string, string) error                                                  `perm:"admin"`
 		WalletLock            func(context.Context) error                                                                  `perm:"admin"`
 		WalletUnlock          func(context.Context, string) error                                                          `perm:"admin"`
 		WalletIsLock          func(context.Context) (bool, error)                                                          `perm:"admin"`
@@ -493,6 +494,7 @@ type GatewayStruct struct {
 type WalletStruct struct {
 	Internal struct {
 		WalletSignMessage2 func(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error) `perm:"sign"`
+		WalletAddPasswd    func(context.Context, string, string) error                                                  `perm:"sign"`
 		WalletLock         func(context.Context) error                                                                  `perm:"sign"`
 		WalletUnlock       func(context.Context, string) error                                                          `perm:"sign"`
 		WalletIsLock       func(context.Context) (bool, error)                                                          `perm:"sign"`
@@ -861,6 +863,10 @@ func (c *FullNodeStruct) WalletDelete(ctx context.Context, addr address.Address,
 
 func (c *FullNodeStruct) WalletValidateAddress(ctx context.Context, str string) (address.Address, error) {
 	return c.Internal.WalletValidateAddress(ctx, str)
+}
+
+func (c *FullNodeStruct) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+	return c.Internal.WalletAddPasswd(ctx, passwd, path)
 }
 
 func (c *FullNodeStruct) WalletLock(ctx context.Context) error {
@@ -1959,6 +1965,11 @@ func (c *WalletStruct) WalletDelete(ctx context.Context, addr address.Address, p
 func (c *WalletStruct) WalletSignMessage2(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error) {
 	panic("not implemented")
 }
+
+func (c *WalletStruct) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+	return c.Internal.WalletAddPasswd(ctx, passwd, path)
+}
+
 func (c *WalletStruct) WalletLock(ctx context.Context) error {
 	return c.Internal.WalletLock(ctx)
 }

@@ -228,18 +228,18 @@ var DaemonCmd = &cli.Command{
 			return err
 		}
 
-		if cctx.Bool("setup-passwd") {
-			passwd := wallet.Prompt("Enter your PIN:\n")
+		ok := wallet.GetSetupState(passwdPath + "/keystore/passwd")
+		if !ok {
+			log.Info("Passwd is not setup")
+		} else {
+			log.Info("Passwd is setup")
+		}
+
+		if cctx.Bool("setup-passwd") && !ok {
+			passwd := wallet.Prompt("Enter your passwd:\n")
 			err := wallet.SetupPasswd([]byte(passwd), passwdPath+"/keystore/passwd")
 			if err != nil {
 				return err
-			}
-		} else {
-			ok := wallet.GetSetupState(passwdPath + "/keystore/passwd")
-			if !ok {
-				log.Info("Passwd is not setup")
-			} else {
-				log.Info("Passwd is setup")
 			}
 		}
 

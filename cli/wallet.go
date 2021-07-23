@@ -16,6 +16,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/crypto"
+	"github.com/mitchellh/go-homedir"
 
 	//"github.com/filecoin-project/specs-actors/actors/builtin"
 
@@ -41,6 +42,7 @@ var walletCmd = &cli.Command{
 		walletVerify,
 		walletDelete,
 		walletMarket,
+		walletAddPasswd,
 		walletLock,
 		walletUnlock,
 		walletIsLock,
@@ -564,8 +566,40 @@ var walletDelete = &cli.Command{
 		if err != nil {
 			return err
 		}
+		if err := api.WalletDelete(ctx, addr, passwd); err != nil {
+			return err
+		}
+		fmt.Println("delete an account success")
+		return nil
+	},
+}
 
-		return api.WalletDelete(ctx, addr, passwd)
+var walletAddPasswd = &cli.Command{
+	Name:  "addpasswd",
+	Usage: "add wallet password",
+	Action: func(cctx *cli.Context) error {
+		api, closer, err := GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+		ctx := ReqContext(cctx)
+		passwdPath, err := homedir.Expand(cctx.String("repo"))
+		if err != nil {
+			return err
+		}
+
+		passwd := wallet.Prompt("Enter your password:\n")
+		if passwd == "" {
+			return xerrors.Errorf("Must enter your passwd")
+		}
+		err = api.WalletAddPasswd(ctx, passwd, passwdPath+"/keystore/passwd")
+		if err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		fmt.Println("add wallet password success")
+		return nil
 	},
 }
 
@@ -579,8 +613,12 @@ var walletLock = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-
-		return api.WalletLock(ctx)
+		err = api.WalletLock(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Println("lock wallet success")
+		return nil
 	},
 }
 
@@ -790,8 +828,11 @@ var walletUnlock = &cli.Command{
 		if passwd == "" {
 			return xerrors.Errorf("Must enter your passwd")
 		}
-
-		return api.WalletUnlock(ctx, passwd)
+		if err := api.WalletUnlock(ctx, passwd); err != nil {
+			return err
+		}
+		fmt.Println("unlock wallet success")
+		return nil
 	},
 }
 

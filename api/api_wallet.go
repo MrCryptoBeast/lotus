@@ -48,6 +48,8 @@ type WalletAPI interface {
 
 	// WalletSignMessage signs the given message using the given address with password.
 	WalletSignMessage2(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error)
+
+	WalletAddPasswd(ctx context.Context, passwd string, path string) error
 	WalletLock(context.Context) error
 	// WalletUnlock
 	WalletUnlock(context.Context, string) error

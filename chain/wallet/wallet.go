@@ -385,6 +385,22 @@ func (w *LocalWallet) Get() api.WalletAPI {
 	return w
 }
 
+func (w *LocalWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+
+	if IsSetup() {
+		err := xerrors.Errorf("Passwd is setup,no need to setup again")
+		log.Warn(err.Error())
+		return err
+	}
+
+	err := SetupPasswd([]byte(passwd), path)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (w *LocalWallet) WalletLock(ctx context.Context) error {
 	if IsSetup() {
 		if WalletPasswd != "" {

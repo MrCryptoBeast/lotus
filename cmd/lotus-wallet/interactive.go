@@ -225,6 +225,10 @@ func (c *InteractiveWallet) DeleteKey2(a address.Address) error {
 	panic("implement me")
 }
 
+func (c *InteractiveWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+	panic("implement me")
+}
+
 func (c *InteractiveWallet) accept(prompt func() error) error {
 	c.lk.Lock()
 	defer c.lk.Unlock()

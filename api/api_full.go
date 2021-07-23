@@ -272,6 +272,8 @@ type FullNode interface {
 	WalletDelete(context.Context, address.Address, string) error
 	// WalletValidateAddress validates whether a given string can be decoded as a well-formed address
 	WalletValidateAddress(context.Context, string) (address.Address, error)
+	// WalletAddPasswd add wallet password, used to protect the wallet
+	WalletAddPasswd(ctx context.Context, passwd string, path string) error
 	// WalletLock
 	WalletLock(context.Context) error
 	// WalletUnlock
@@ -551,7 +553,7 @@ type FullNode interface {
 	MarketReleaseFunds(ctx context.Context, addr address.Address, amt types.BigInt) error
 	// MarketWithdraw withdraws unlocked funds from the market actor
 	MarketWithdraw(ctx context.Context, wallet, addr address.Address, amt types.BigInt) (cid.Cid, error)
-	
+
 	// MethodGroup: Paych
 	// The Paych methods are for interacting with and managing payment channels
 
@@ -1017,7 +1019,6 @@ type MsigTransaction struct {
 
 	Approved []address.Address
 }
-
 
 type AddrListEncrypt struct {
 	Addr    address.Address

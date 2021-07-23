@@ -119,3 +119,7 @@ func (c *LoggedWallet) WalletClearPasswd(ctx context.Context) (bool, error) {
 func (c *LoggedWallet) DeleteKey2(a address.Address) error {
 	panic("implement me")
 }
+
+func (c *LoggedWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+	panic("implement me")
+}

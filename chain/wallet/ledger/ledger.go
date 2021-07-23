@@ -140,7 +140,7 @@ func (lw LedgerWallet) importKey(ki LedgerKeyInfo) (address.Address, error) {
 	return ki.Address, nil
 }
 
-func (lw LedgerWallet) WalletListEncryption(context.Context) ([]api.AddrListEncrypt, error)  {
+func (lw LedgerWallet) WalletListEncryption(context.Context) ([]api.AddrListEncrypt, error) {
 	return nil, nil
 }
 
@@ -234,6 +234,11 @@ func (lw LedgerWallet) WalletNew(ctx context.Context, t types.KeyType) (address.
 func (lw *LedgerWallet) WalletSignMessage2(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error) {
 	return nil, nil
 }
+
+func (lw *LedgerWallet) WalletAddPasswd(context.Context, string, string) error {
+	return nil
+}
+
 func (lw *LedgerWallet) WalletLock(context.Context) error {
 	return nil
 }

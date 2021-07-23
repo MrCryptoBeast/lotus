@@ -89,7 +89,7 @@ func (m MultiWallet) WalletHas(ctx context.Context, address address.Address) (bo
 	return w != nil, err
 }
 
-func (m MultiWallet) WalletListEncryption(ctx context.Context) ([]api.AddrListEncrypt, error)  {
+func (m MultiWallet) WalletListEncryption(ctx context.Context) ([]api.AddrListEncrypt, error) {
 	ws := nonNil(m.Remote, m.Ledger, m.Local)
 	for _, w := range ws {
 		l, err := w.WalletListEncryption(ctx)
@@ -195,6 +195,10 @@ func (m MultiWallet) WalletClearPasswd(ctx context.Context) (bool, error) {
 // WalletIsLock
 func (m MultiWallet) WalletIsLock(ctx context.Context) (bool, error) {
 	return m.Local.WalletIsLock(ctx)
+}
+
+func (m MultiWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+	return m.Local.WalletAddPasswd(ctx, passwd, path)
 }
 
 func (m MultiWallet) WalletLock(ctx context.Context) error {
