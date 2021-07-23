@@ -2,11 +2,12 @@ package apistruct
 
 import (
 	"context"
+	"io"
+	"time"
+
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-multistore"
-	"io"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
@@ -312,7 +313,7 @@ type StorageMinerStruct struct {
 		MarketPendingDeals        func(ctx context.Context) (api.PendingDealInfo, error)                                                                                                                       `perm:"write"`
 		MarketPublishPendingDeals func(ctx context.Context) error                                                                                                                                              `perm:"admin"`
 
-		PledgeSector              func(ctx context.Context, group string) error             `perm:"write"`
+		PledgeSector func(ctx context.Context, group string) error `perm:"write"`
 
 		SectorsStatus                 func(ctx context.Context, sid abi.SectorNumber, showOnChainInfo bool) (api.SectorInfo, error) `perm:"read"`
 		SectorsList                   func(context.Context) ([]abi.SectorNumber, error)                                             `perm:"read"`
@@ -362,11 +363,11 @@ type StorageMinerStruct struct {
 		WorkerStats   func(context.Context) (map[uuid.UUID]storiface.WorkerStats, error) `perm:"admin"`
 		WorkerJobs    func(context.Context) (map[uuid.UUID][]storiface.WorkerJob, error) `perm:"admin"`
 
-		GetWorker      func(ctx context.Context) (map[string]storiface.WorkerParams, error)   `perm:"admin"`
-		SetWorkerParam func(ctx context.Context, worker string, key string, value string) error `perm:"admin"`
-		UpdateSectorGroup func(ctx context.Context, SectorNum string, group string) error `perm:"admin"`
-		DeleteSectorGroup func(ctx context.Context, SectorNum string) error `perm:"admin"`
-		TrySched func(ctx context.Context, group, sectorSize string) (bool, error) `perm:"admin"`
+		GetWorker         func(ctx context.Context) (map[string]storiface.WorkerParams, error)     `perm:"admin"`
+		SetWorkerParam    func(ctx context.Context, worker string, key string, value string) error `perm:"admin"`
+		UpdateSectorGroup func(ctx context.Context, SectorNum string, group string) error          `perm:"admin"`
+		DeleteSectorGroup func(ctx context.Context, SectorNum string) error                        `perm:"admin"`
+		TrySched          func(ctx context.Context, group, sectorSize string) (bool, error)        `perm:"admin"`
 
 		SealingSchedDiag                       func(context.Context, bool) (interface{}, error)                  `perm:"admin"`
 		DealsImportData                        func(ctx context.Context, dealPropCid cid.Cid, file string) error `perm:"write"`
@@ -412,7 +413,7 @@ type WorkerStruct struct {
 		SealPreCommit1  func(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (storiface.CallID, error)                                                              `perm:"admin"`
 		SealPreCommit2  func(ctx context.Context, sector storage.SectorRef, pc1o storage.PreCommit1Out) (storiface.CallID, error)                                                                                     `perm:"admin"`
 		SealCommit1     func(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, seed abi.InteractiveSealRandomness, pieces []abi.PieceInfo, cids storage.SectorCids) (storiface.CallID, error) `perm:"admin"`
-		SealCommit2     func(ctx context.Context, sector storage.SectorRef, c1o storage.Commit1Out, remoteC2 bool) (storiface.CallID, error)                                                                                         `perm:"admin"`
+		SealCommit2     func(ctx context.Context, sector storage.SectorRef, c1o storage.Commit1Out, remoteC2 bool) (storiface.CallID, error)                                                                          `perm:"admin"`
 		FinalizeSector  func(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) (storiface.CallID, error)                                                                                   `perm:"admin"`
 		ReleaseUnsealed func(ctx context.Context, sector storage.SectorRef, safeToFree []storage.Range) (storiface.CallID, error)                                                                                     `perm:"admin"`
 		MoveStorage     func(ctx context.Context, sector storage.SectorRef, types storiface.SectorFileType) (storiface.CallID, error)                                                                                 `perm:"admin"`
@@ -434,15 +435,15 @@ type WorkerStruct struct {
 		ProcessSession func(context.Context) (uuid.UUID, error) `perm:"admin"`
 		Session        func(context.Context) (uuid.UUID, error) `perm:"admin"`
 
-		AllowableRange  func(ctx context.Context, task sealtasks.TaskType) (bool, error)              `perm:"admin"`
-		GetWorkerInfo   func(ctx context.Context) storiface.WorkerParams                              `perm:"admin"`
-		AddStore        func(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error `perm:"admin"`
-		DeleteStore     func(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error `perm:"admin"`
-		SetWorkerParams func(ctx context.Context, key string, val string) error                       `perm:"admin"`
-		GetWorkerGroup  func(ctx context.Context) string                                              `perm:"admin"`
-		HasRemoteC2     func(context.Context) (bool, error)                                           `perm:"admin"`
-		AddAutoTaskLimit func(ctx context.Context, lim map[string]int64) error 						  `perm:"admin"`
-		AutoTaskLimit func(ctx context.Context) storiface.AutoTaskReturn                              `perm:"admin"`
+		AllowableRange   func(ctx context.Context, task sealtasks.TaskType) (bool, error)              `perm:"admin"`
+		GetWorkerInfo    func(ctx context.Context) storiface.WorkerParams                              `perm:"admin"`
+		AddStore         func(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error `perm:"admin"`
+		DeleteStore      func(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error `perm:"admin"`
+		SetWorkerParams  func(ctx context.Context, key string, val string) error                       `perm:"admin"`
+		GetWorkerGroup   func(ctx context.Context) string                                              `perm:"admin"`
+		HasRemoteC2      func(context.Context) (bool, error)                                           `perm:"admin"`
+		AddAutoTaskLimit func(ctx context.Context, lim map[string]int64) error                         `perm:"admin"`
+		AutoTaskLimit    func(ctx context.Context) storiface.AutoTaskReturn                            `perm:"admin"`
 
 		WalletSignMessage2 func(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error) `perm:"admin"`
 		WalletLock         func(context.Context) error                                                                  `perm:"admin"`
@@ -2010,7 +2011,7 @@ func (w *WorkerStruct) HasRemoteC2(ctx context.Context) (bool, error) {
 	return w.Internal.HasRemoteC2(ctx)
 }
 
-func (c *WorkerStruct) AddAutoTaskLimit(ctx context.Context, lim map[string]int64) error  {
+func (c *WorkerStruct) AddAutoTaskLimit(ctx context.Context, lim map[string]int64) error {
 	return c.Internal.AddAutoTaskLimit(ctx, lim)
 }
 
