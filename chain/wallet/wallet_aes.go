@@ -115,9 +115,9 @@ func ResetPasswd(passwd []byte) error {
 
 func ClearPasswd() error {
 	err := os.Remove(passwdPath)
-        if err != nil {
-                return err
-        }
+	if err != nil {
+		return err
+	}
 	WalletPasswd = ""
 	passwdPath = ""
 	return nil

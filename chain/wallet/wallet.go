@@ -26,7 +26,6 @@ const (
 	KDefault     = "default"
 )
 
-
 type LocalWallet struct {
 	keys     map[address.Address]*Key
 	keystore types.KeyStore
@@ -564,7 +563,7 @@ func (w *LocalWallet) WalletSignMessage2(ctx context.Context, k address.Address,
 	}, nil
 }
 
-func (w *LocalWallet)  WalletListEncryption(context.Context) ([]api.AddrListEncrypt, error){
+func (w *LocalWallet) WalletListEncryption(context.Context) ([]api.AddrListEncrypt, error) {
 	all, err := w.keystore.List()
 	if err != nil {
 		return nil, xerrors.Errorf("listing keystore: %w", err)
@@ -600,7 +599,7 @@ func (w *LocalWallet)  WalletListEncryption(context.Context) ([]api.AddrListEncr
 				encrypt = true
 			}
 
-			out = append(out, api.AddrListEncrypt{Addr: addr,Encrypt: encrypt})
+			out = append(out, api.AddrListEncrypt{Addr: addr, Encrypt: encrypt})
 		}
 	}
 
