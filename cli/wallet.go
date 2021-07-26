@@ -866,12 +866,17 @@ var walletChangePasswd = &cli.Command{
 			return nil
 		}
 		// passwd := cctx.String("passwd")
-		passwd := wallet.Prompt("Enter your Password:\n")
+		passwd := wallet.Prompt("Enter your old Password:\n")
 		if passwd == "" {
-			return xerrors.Errorf("Must enter your passwd")
+			return xerrors.Errorf("Must enter your old passwd")
 		}
 
-		_, err = api.WalletChangePasswd(ctx, passwd)
+		newPasswd := wallet.Prompt("Enter your new Password:\n")
+		if passwd == "" {
+			return xerrors.Errorf("Must enter your new passwd")
+		}
+
+		_, err = api.WalletChangePasswd(ctx, passwd, newPasswd)
 		if err != nil {
 			return err
 		}
@@ -895,7 +900,12 @@ var walletClearPasswd = &cli.Command{
 			fmt.Println("Passwd is not setup")
 			return nil
 		}
-		_, err = api.WalletClearPasswd(ctx)
+		passwd := wallet.Prompt("Enter your Password:\n")
+		if passwd == "" {
+			return xerrors.Errorf("Must enter your passwd")
+		}
+
+		_, err = api.WalletClearPasswd(ctx, passwd)
 		if err != nil {
 			return err
 		}

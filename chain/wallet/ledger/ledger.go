@@ -254,12 +254,12 @@ func (lw *LedgerWallet) WalletIsLock(context.Context) (bool, error) {
 }
 
 // Wallet Change Password
-func (lw *LedgerWallet) WalletChangePasswd(context.Context, string) (bool, error) {
+func (lw *LedgerWallet) WalletChangePasswd(context.Context, string, string) (bool, error) {
 	return false, nil
 }
 
 // Wallet Clear Passwd
-func (lw *LedgerWallet) WalletClearPasswd(context.Context) (bool, error) {
+func (lw *LedgerWallet) WalletClearPasswd(context.Context, string) (bool, error) {
 	return false, nil
 }
 

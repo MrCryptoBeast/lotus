@@ -108,11 +108,11 @@ func (c *LoggedWallet) WalletIsLock(ctx context.Context) (bool, error) {
 	panic("implement me")
 }
 
-func (c *LoggedWallet) WalletChangePasswd(ctx context.Context, s string) (bool, error) {
+func (c *LoggedWallet) WalletChangePasswd(ctx context.Context, s string, passwd string) (bool, error) {
 	panic("implement me")
 }
 
-func (c *LoggedWallet) WalletClearPasswd(ctx context.Context) (bool, error) {
+func (c *LoggedWallet) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
 	panic("implement me")
 }
 

@@ -56,9 +56,9 @@ type WalletAPI interface {
 	// WalletIsLock
 	WalletIsLock(context.Context) (bool, error)
 	// Wallet Change Password
-	WalletChangePasswd(context.Context, string) (bool, error)
+	WalletChangePasswd(context.Context, string, string) (bool, error)
 	// Wallet Clear Passwd
-	WalletClearPasswd(context.Context) (bool, error)
+	WalletClearPasswd(context.Context, string) (bool, error)
 
 	DeleteKey2(address.Address) error
 }

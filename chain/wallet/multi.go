@@ -180,16 +180,16 @@ func (m MultiWallet) WalletDelete(ctx context.Context, address address.Address, 
 	}
 }
 
-func (m MultiWallet) WalletChangePasswd(ctx context.Context, newPasswd string) (bool, error) {
-	return m.Local.WalletChangePasswd(ctx, newPasswd)
+func (m MultiWallet) WalletChangePasswd(ctx context.Context, oldpasswd, newPasswd string) (bool, error) {
+	return m.Local.WalletChangePasswd(ctx, oldpasswd, newPasswd)
 }
 
 func (m MultiWallet) DeleteKey2(addr address.Address) error {
 	return m.Local.DeleteKey2(addr)
 }
 
-func (m MultiWallet) WalletClearPasswd(ctx context.Context) (bool, error) {
-	return m.Local.WalletClearPasswd(ctx)
+func (m MultiWallet) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
+	return m.Local.WalletClearPasswd(ctx, passwd)
 }
 
 // WalletIsLock

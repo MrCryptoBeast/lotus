@@ -163,8 +163,8 @@ type FullNodeStruct struct {
 		WalletLock            func(context.Context) error                                                                  `perm:"admin"`
 		WalletUnlock          func(context.Context, string) error                                                          `perm:"admin"`
 		WalletIsLock          func(context.Context) (bool, error)                                                          `perm:"admin"`
-		WalletChangePasswd    func(context.Context, string) (bool, error)                                                  `perm:"admin"`
-		WalletClearPasswd     func(context.Context) (bool, error)                                                          `perm:"admin"`
+		WalletChangePasswd    func(context.Context, string, string) (bool, error)                                          `perm:"admin"`
+		WalletClearPasswd     func(context.Context, string) (bool, error)                                                  `perm:"admin"`
 
 		ClientImport                              func(ctx context.Context, ref api.FileRef) (*api.ImportRes, error)                                                `perm:"admin"`
 		ClientListImports                         func(ctx context.Context) ([]api.Import, error)                                                                   `perm:"write"`
@@ -450,8 +450,8 @@ type WorkerStruct struct {
 		WalletLock         func(context.Context) error                                                                  `perm:"admin"`
 		WalletUnlock       func(context.Context, string) error                                                          `perm:"admin"`
 		WalletIsLock       func(context.Context) (bool, error)                                                          `perm:"admin"`
-		WalletChangePasswd func(context.Context, string) (bool, error)                                                  `perm:"admin"`
-		WalletClearPasswd  func(context.Context) (bool, error)                                                          `perm:"admin"`
+		WalletChangePasswd func(context.Context, string, string) (bool, error)                                          `perm:"admin"`
+		WalletClearPasswd  func(context.Context, string) (bool, error)                                                  `perm:"admin"`
 		DeleteKey2         func(address.Address)                                                                        `perm:"admin"`
 	}
 }
@@ -498,8 +498,8 @@ type WalletStruct struct {
 		WalletLock         func(context.Context) error                                                                  `perm:"sign"`
 		WalletUnlock       func(context.Context, string) error                                                          `perm:"sign"`
 		WalletIsLock       func(context.Context) (bool, error)                                                          `perm:"sign"`
-		WalletChangePasswd func(context.Context, string) (bool, error)                                                  `perm:"sign"`
-		WalletClearPasswd  func(context.Context) (bool, error)                                                          `perm:"sign"`
+		WalletChangePasswd func(context.Context, string, string) (bool, error)                                          `perm:"sign"`
+		WalletClearPasswd  func(context.Context, string) (bool, error)                                                  `perm:"sign"`
 		DeleteKey2         func(address.Address) error                                                                  `perm:"sign"`
 
 		WalletNew            func(context.Context, types.KeyType) (address.Address, error)                          `perm:"write"`
@@ -881,12 +881,12 @@ func (c *FullNodeStruct) WalletIsLock(ctx context.Context) (bool, error) {
 	return c.Internal.WalletIsLock(ctx)
 }
 
-func (c *FullNodeStruct) WalletChangePasswd(ctx context.Context, newPasswd string) (bool, error) {
-	return c.Internal.WalletChangePasswd(ctx, newPasswd)
+func (c *FullNodeStruct) WalletChangePasswd(ctx context.Context, oldpasswd, newPasswd string) (bool, error) {
+	return c.Internal.WalletChangePasswd(ctx, oldpasswd, newPasswd)
 }
 
-func (c *FullNodeStruct) WalletClearPasswd(ctx context.Context) (bool, error) {
-	return c.Internal.WalletClearPasswd(ctx)
+func (c *FullNodeStruct) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
+	return c.Internal.WalletClearPasswd(ctx, passwd)
 }
 
 func (c *FullNodeStruct) MpoolGetNonce(ctx context.Context, addr address.Address) (uint64, error) {
@@ -1982,12 +1982,12 @@ func (c *WalletStruct) WalletIsLock(ctx context.Context) (bool, error) {
 	return c.Internal.WalletIsLock(ctx)
 }
 
-func (c *WalletStruct) WalletChangePasswd(ctx context.Context, newPasswd string) (bool, error) {
-	return c.Internal.WalletChangePasswd(ctx, newPasswd)
+func (c *WalletStruct) WalletChangePasswd(ctx context.Context, oldpasswd, newPasswd string) (bool, error) {
+	return c.Internal.WalletChangePasswd(ctx, oldpasswd, newPasswd)
 }
 
-func (c *WalletStruct) WalletClearPasswd(ctx context.Context) (bool, error) {
-	return c.Internal.WalletClearPasswd(ctx)
+func (c *WalletStruct) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
+	return c.Internal.WalletClearPasswd(ctx, passwd)
 }
 
 func (c *WalletStruct) DeleteKey2(addr address.Address) error {
