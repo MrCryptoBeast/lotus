@@ -18,10 +18,6 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/mitchellh/go-homedir"
 
-	//"github.com/filecoin-project/specs-actors/actors/builtin"
-
-	//"github.com/filecoin-project/lotus/chain/actors"
-	//"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/lib/tablewriter"
@@ -294,21 +290,12 @@ var walletExport = &cli.Command{
 			}
 		}()
 
-		// passwd := cctx.String("passwd")
-		passwd := wallet.Prompt("Enter your Password:\n")
-		if passwd == "" {
-			return xerrors.Errorf("Must enter your passwd")
-		}
-		addrs, err := api.WalletListEncryption(ctx)
-		if err != nil {
-			return err
-		}
-
-		for _, addr := range addrs {
-			if addr.Addr.String() == cctx.Args().First() {
-				if addr.Encrypt && passwd == "" {
-					return fmt.Errorf("please enter the password(lotus wallet export --help)")
-				}
+		passwd := ""
+		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			// passwd := cctx.String("passwd")
+			passwd = wallet.Prompt("Enter your Password:\n")
+			if passwd == "" {
+				return xerrors.Errorf("must enter your passwd")
 			}
 		}
 
@@ -544,21 +531,12 @@ var walletDelete = &cli.Command{
 			return fmt.Errorf("must specify address to delete")
 		}
 
-		// passwd := cctx.String("passwd")
-		passwd := wallet.Prompt("Enter your Password:\n")
-		if passwd == "" {
-			return xerrors.Errorf("Must enter your passwd")
-		}
-		addrs, err := api.WalletListEncryption(ctx)
-		if err != nil {
-			return err
-		}
-
-		for _, addr := range addrs {
-			if addr.Addr.String() == cctx.Args().First() {
-				if addr.Encrypt && passwd == "" {
-					return fmt.Errorf("please enter the password(lotus wallet delete --help)")
-				}
+		passwd := ""
+		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			// passwd := cctx.String("passwd")
+			passwd = wallet.Prompt("Enter your Password:\n")
+			if passwd == "" {
+				return xerrors.Errorf("Must enter your passwd")
 			}
 		}
 
@@ -576,7 +554,7 @@ var walletDelete = &cli.Command{
 
 var walletAddPasswd = &cli.Command{
 	Name:  "addpasswd",
-	Usage: "add wallet password",
+	Usage: "add a password for wallet",
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -584,16 +562,17 @@ var walletAddPasswd = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-		passwdPath, err := homedir.Expand(cctx.String("repo"))
-		if err != nil {
-			return err
+
+		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("passwd is setup,no need to setup again")
+			return nil
 		}
 
 		passwd := wallet.Prompt("Enter your password:\n")
 		if passwd == "" {
-			return xerrors.Errorf("Must enter your passwd")
+			return xerrors.Errorf("must enter your passwd")
 		}
-		err = api.WalletAddPasswd(ctx, passwd, passwdPath+"/keystore/passwd")
+		err = api.WalletAddPasswd(ctx, passwd, getWalletRepo(cctx))
 		if err != nil {
 			fmt.Println(err.Error())
 			return err
@@ -823,10 +802,14 @@ var walletUnlock = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+		if !wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("Passwd is not setup")
+			return nil
+		}
 		passwd := wallet.Prompt("Enter your Password:\n")
 		// passwd := cctx.String("passwd")
 		if passwd == "" {
-			return xerrors.Errorf("Must enter your passwd")
+			return xerrors.Errorf("must enter your passwd")
 		}
 		if err := api.WalletUnlock(ctx, passwd); err != nil {
 			return err
@@ -878,7 +861,10 @@ var walletChangePasswd = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-
+		if !wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("Passwd is not setup")
+			return nil
+		}
 		// passwd := cctx.String("passwd")
 		passwd := wallet.Prompt("Enter your Password:\n")
 		if passwd == "" {
@@ -905,7 +891,10 @@ var walletClearPasswd = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-
+		if !wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("Passwd is not setup")
+			return nil
+		}
 		_, err = api.WalletClearPasswd(ctx)
 		if err != nil {
 			return err
@@ -914,4 +903,12 @@ var walletClearPasswd = &cli.Command{
 		fmt.Println("wallet passwd Clear success")
 		return nil
 	},
+}
+
+func getWalletRepo(cctx *cli.Context) string {
+	passwdPath, err := homedir.Expand(cctx.String("repo"))
+	if err != nil {
+		return ""
+	}
+	return passwdPath + "/keystore/passwd"
 }

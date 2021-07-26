@@ -36,9 +36,10 @@ func main() {
 	}
 
 	app := &cli.App{
-		Name:    "lotus-wallet",
-		Usage:   "Basic external wallet",
-		Version: build.UserVersion(),
+		Name:                 "lotus-wallet",
+		Usage:                "Basic external wallet",
+		Version:              build.UserVersion(),
+		EnableBashCompletion: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    FlagWalletRepo,

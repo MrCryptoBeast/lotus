@@ -18,6 +18,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/chain/wallet"
 )
 
 var sendCmd = &cli.Command{
@@ -66,10 +67,10 @@ var sendCmd = &cli.Command{
 			Name:  "force",
 			Usage: "must be specified for the action to take effect if maybe SysErrInsufficientFunds etc",
 		},
-		&cli.StringFlag{
-			Name:  "passwd",
-			Usage: "unlock wallet with passwd",
-		},
+		// &cli.StringFlag{
+		// 	Name:  "passwd",
+		// 	Usage: "unlock wallet with passwd",
+		// },
 	},
 	Action: func(cctx *cli.Context) error {
 		if cctx.Args().Len() != 2 {
@@ -152,16 +153,25 @@ var sendCmd = &cli.Command{
 			Params:     params,
 		}
 
-		passwd := cctx.String("passwd")
-		addrs, err := api.WalletListEncryption(ctx)
-		if err != nil {
-			return err
-		}
+		passwd := ""
+		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			// passwd := cctx.String("passwd")
+			passwd = wallet.Prompt("Enter your Password:\n")
+			if passwd == "" {
+				return fmt.Errorf("must enter your passwd")
+			}
 
-		for _, addr := range addrs {
-			if addr.Addr.String() == fromAddr.String() {
-				if addr.Encrypt && passwd == "" {
-					return fmt.Errorf("please enter the password")
+			addrs, err := api.WalletListEncryption(ctx)
+			if err != nil {
+				return err
+			}
+
+			// check encrypt addr and password
+			for _, addr := range addrs {
+				if addr.Addr.String() == fromAddr.String() {
+					if addr.Encrypt && passwd == "" {
+						return fmt.Errorf("please enter the password")
+					}
 				}
 			}
 		}
@@ -192,7 +202,7 @@ var sendCmd = &cli.Command{
 				return err
 			}
 			fmt.Println(sm.Cid())
-	
+
 		} else {
 			sm, err := api.MpoolPushMessage2(ctx, msg, nil, passwd)
 			if err != nil {

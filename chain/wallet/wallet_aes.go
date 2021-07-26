@@ -176,6 +176,24 @@ func GetSetupState(path string) bool {
 	return true
 }
 
+// GetSetupStateForLocal only lotus-wallet use
+//
+// check encryption status
+func GetSetupStateForLocal(path string) bool {
+	fstat, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	} else if err != nil {
+		return false
+	}
+
+	if fstat.Mode()&0077 != 0 {
+		return false
+	}
+
+	return true
+}
+
 func IsSetup() bool {
 	if passwdPath == "" {
 		return false
