@@ -283,7 +283,7 @@ var walletExport = &cli.Command{
 
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Println("invaild address payload")
+				fmt.Printf("invaild address payload %v", err)
 			}
 		}()
 
@@ -293,7 +293,7 @@ var walletExport = &cli.Command{
 		}
 
 		passwd := ""
-		var ki *types.KeyInfo
+		ki := new(types.KeyInfo)
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
 			// passwd := cctx.String("passwd")
 			passwd = wallet.Prompt("Enter your Password:\n")
@@ -304,7 +304,8 @@ var walletExport = &cli.Command{
 			if err != nil {
 				return err
 			}
-			ki = rest.(*types.KeyInfo)
+			keyinfo, _ := json.Marshal(rest)
+			json.Unmarshal(keyinfo, ki)
 		} else {
 			ki, err = api.WalletExport(ctx, addr)
 			if err != nil {
@@ -316,7 +317,7 @@ var walletExport = &cli.Command{
 		if err != nil {
 			return err
 		}
-
+		fmt.Printf("WalletExportForEnc %+v \n", ki)
 		fmt.Println(hex.EncodeToString(b))
 		return nil
 	},
