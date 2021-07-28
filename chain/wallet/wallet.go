@@ -137,13 +137,7 @@ func (w *LocalWallet) tryFind(addr address.Address) (types.KeyInfo, error) {
 	return ki, nil
 }
 
-func (w *LocalWallet) WalletExport(ctx context.Context, addr address.Address, passwd string) (*types.KeyInfo, error) {
-	oldPasswd := WalletPasswd
-	WalletPasswd = passwd
-	defer func() {
-		WalletPasswd = oldPasswd
-	}()
-
+func (w *LocalWallet) WalletExport(ctx context.Context, addr address.Address) (*types.KeyInfo, error) {
 	k, err := w.findKey(addr)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to find key to export: %w", err)
@@ -335,19 +329,6 @@ func (w *LocalWallet) walletDelete(ctx context.Context, addr address.Address) er
 	return nil
 }
 
-func (w *LocalWallet) DeleteKey2(addr address.Address) error {
-	k, err := w.findKey(addr)
-	if err != nil {
-		return xerrors.Errorf("failed to delete key %s : %w", addr, err)
-	}
-
-	if err := w.keystore.Delete(KNamePrefix + k.Address.String()); err != nil {
-		return xerrors.Errorf("failed to delete key %s: %w", addr, err)
-	}
-
-	return nil
-}
-
 func (w *LocalWallet) deleteDefault() {
 	w.lk.Lock()
 	defer w.lk.Unlock()
@@ -358,13 +339,7 @@ func (w *LocalWallet) deleteDefault() {
 	}
 }
 
-func (w *LocalWallet) WalletDelete(ctx context.Context, addr address.Address, passwd string) error {
-	oldPasswd := WalletPasswd
-	WalletPasswd = passwd
-	defer func() {
-		WalletPasswd = oldPasswd
-	}()
-
+func (w *LocalWallet) WalletDelete(ctx context.Context, addr address.Address) error {
 	if err := w.walletDelete(ctx, addr); err != nil {
 		return xerrors.Errorf("wallet delete: %w", err)
 	}
@@ -385,20 +360,71 @@ func (w *LocalWallet) Get() api.WalletAPI {
 	return w
 }
 
-func (w *LocalWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+var _ api.WalletAPI = &LocalWallet{}
 
-	if IsSetup() {
-		err := xerrors.Errorf("Passwd is setup,no need to setup again")
-		log.Warn(err.Error())
-		return err
+func swapMainnetForTestnetPrefix(addr string) (string, error) {
+	aChars := []rune(addr)
+	prefixRunes := []rune(address.TestnetPrefix)
+	if len(prefixRunes) != 1 {
+		return "", xerrors.Errorf("unexpected prefix length: %d", len(prefixRunes))
 	}
 
-	err := SetupPasswd([]byte(passwd), path)
+	aChars[0] = prefixRunes[0]
+	return string(aChars), nil
+}
+
+type nilDefault struct{}
+
+func (n nilDefault) GetDefault() (address.Address, error) {
+	return address.Undef, nil
+}
+
+func (n nilDefault) SetDefault(a address.Address) error {
+	return xerrors.Errorf("not supported; local wallet disabled")
+}
+
+var NilDefault nilDefault
+var _ Default = NilDefault
+
+func (w *LocalWallet) DeleteKey2(addr address.Address) error {
+	k, err := w.findKey(addr)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to delete key %s : %w", addr, err)
+	}
+
+	if err := w.keystore.Delete(KNamePrefix + k.Address.String()); err != nil {
+		return xerrors.Errorf("failed to delete key %s: %w", addr, err)
 	}
 
 	return nil
+}
+
+// wallet options
+
+func (w *LocalWallet) WalletExportForEnc(ctx context.Context, addr address.Address, passwd string) (*types.KeyInfo, error) {
+
+	if IsSetup() {
+		if IsLock() {
+			return nil, xerrors.Errorf("Wallet is locked")
+		}
+
+		if err := CheckPasswd([]byte(passwd)); err != nil {
+			return nil, err
+		}
+	}
+	return w.WalletExport(ctx, addr)
+}
+
+func (w *LocalWallet) WalletDeleteForEnc(ctx context.Context, addr address.Address, passwd string) error {
+	if IsSetup() {
+		if IsLock() {
+			return xerrors.Errorf("Wallet is locked")
+		}
+		if err := CheckPasswd([]byte(passwd)); err != nil {
+			return err
+		}
+	}
+	return w.WalletDelete(ctx, addr)
 }
 
 func (w *LocalWallet) WalletLock(ctx context.Context) error {
@@ -441,22 +467,34 @@ func (w *LocalWallet) WalletIsLock(ctx context.Context) (bool, error) {
 	return false, xerrors.Errorf("Passwd is not setup")
 }
 
+func (w *LocalWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
+
+	if IsSetup() {
+		err := xerrors.Errorf("Passwd is setup,no need to setup again")
+		log.Warn(err.Error())
+		return err
+	}
+
+	err := SetupPasswd([]byte(passwd), path)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (w *LocalWallet) WalletChangePasswd(ctx context.Context, oldPasswd, newPasswd string) (bool, error) {
 
 	if !IsSetup() {
 		return false, xerrors.Errorf("Passwd is not setup")
 	}
 
-	if len(newPasswd) != 16 {
-		return false, xerrors.Errorf("passwd must 16 character")
+	if WalletPasswd == "" {
+		return false, xerrors.Errorf("Wallet is locked")
 	}
 
 	if err := CheckPasswd([]byte(oldPasswd)); err != nil {
 		return false, err
-	}
-
-	if WalletPasswd == "" {
-		return false, xerrors.Errorf("Wallet is locked")
 	}
 
 	addr_list, err := w.WalletList(ctx)
@@ -466,7 +504,7 @@ func (w *LocalWallet) WalletChangePasswd(ctx context.Context, oldPasswd, newPass
 	}
 	addr_all := make(map[address.Address]*types.KeyInfo)
 	for _, v := range addr_list {
-		addr_all[v], err = w.WalletExport(ctx, v, WalletPasswd)
+		addr_all[v], err = w.WalletExport(ctx, v)
 		if err != nil {
 			return false, err
 		}
@@ -527,7 +565,7 @@ func (w *LocalWallet) WalletClearPasswd(ctx context.Context, passwd string) (boo
 	}
 	addr_all := make(map[address.Address]*types.KeyInfo)
 	for _, v := range addr_list {
-		addr_all[v], err = w.WalletExport(ctx, v, WalletPasswd)
+		addr_all[v], err = w.WalletExport(ctx, v)
 		if err != nil {
 			return false, err
 		}
@@ -566,28 +604,6 @@ func (w *LocalWallet) WalletClearPasswd(ctx context.Context, passwd string) (boo
 
 	w.ClearCache()
 	return true, nil
-}
-
-func (w *LocalWallet) WalletSignMessage2(ctx context.Context, k address.Address, msg *types.Message, passwd string) (*types.SignedMessage, error) {
-	mcid := msg.Cid()
-
-	oldPasswd := WalletPasswd
-	WalletPasswd = passwd
-	defer func() {
-		WalletPasswd = oldPasswd
-	}()
-
-	sig, err := w.WalletSign(ctx, k, mcid.Bytes(), api.MsgMeta{
-		Type: api.MTUnknown,
-	})
-	if err != nil {
-		return nil, xerrors.Errorf("failed to sign message: %w", err)
-	}
-
-	return &types.SignedMessage{
-		Message:   *msg,
-		Signature: *sig,
-	}, nil
 }
 
 func (w *LocalWallet) WalletListEncryption(context.Context) ([]api.AddrListEncrypt, error) {
@@ -637,28 +653,9 @@ func (w *LocalWallet) WalletListEncryption(context.Context) ([]api.AddrListEncry
 	return out, nil
 }
 
-var _ api.WalletAPI = &LocalWallet{}
-
-func swapMainnetForTestnetPrefix(addr string) (string, error) {
-	aChars := []rune(addr)
-	prefixRunes := []rune(address.TestnetPrefix)
-	if len(prefixRunes) != 1 {
-		return "", xerrors.Errorf("unexpected prefix length: %d", len(prefixRunes))
+func (w *LocalWallet) WalletCheckPasswd(ctx context.Context, passwd string) bool {
+	if err := CheckPasswd([]byte(passwd)); err != nil {
+		return false
 	}
-
-	aChars[0] = prefixRunes[0]
-	return string(aChars), nil
+	return true
 }
-
-type nilDefault struct{}
-
-func (n nilDefault) GetDefault() (address.Address, error) {
-	return address.Undef, nil
-}
-
-func (n nilDefault) SetDefault(a address.Address) error {
-	return xerrors.Errorf("not supported; local wallet disabled")
-}
-
-var NilDefault nilDefault
-var _ Default = NilDefault

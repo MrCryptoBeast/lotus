@@ -216,7 +216,7 @@ type FullNode interface {
 
 	// MpoolBatchPushMessage batch pushes a unsigned message to mempool.
 	MpoolBatchPushMessage(context.Context, []*types.Message, *MessageSendSpec) ([]*types.SignedMessage, error)
-	MpoolPushMessage2(ctx context.Context, msg *types.Message, spec *MessageSendSpec, passwd string) (*types.SignedMessage, error)
+
 	MpoolListLocal(ctx context.Context) ([]*types.SignedMessage, error)
 	// MpoolGetNonce gets next nonce for the specified sender.
 	// Note that this method may not be atomic. Use MpoolPushMessage instead.
@@ -248,15 +248,12 @@ type FullNode interface {
 	WalletHas(context.Context, address.Address) (bool, error)
 	// WalletList lists all the addresses in the wallet.
 	WalletList(context.Context) ([]address.Address, error)
-	WalletListEncryption(context.Context) ([]AddrListEncrypt, error)
 	// WalletBalance returns the balance of the given address at the current head of the chain.
 	WalletBalance(context.Context, address.Address) (types.BigInt, error)
 	// WalletSign signs the given bytes using the given address.
 	WalletSign(context.Context, address.Address, []byte) (*crypto.Signature, error)
 	// WalletSignMessage signs the given message using the given address.
 	WalletSignMessage(context.Context, address.Address, *types.Message) (*types.SignedMessage, error)
-	// WalletSignMessage signs the given message using the given address with password.
-	WalletSignMessage2(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error)
 	// WalletVerify takes an address, a signature, and some bytes, and indicates whether the signature is valid.
 	// The address does not have to be in the wallet.
 	WalletVerify(context.Context, address.Address, []byte, *crypto.Signature) (bool, error)
@@ -265,26 +262,16 @@ type FullNode interface {
 	// WalletSetDefault marks the given address as as the default one.
 	WalletSetDefault(context.Context, address.Address) error
 	// WalletExport returns the private key of an address in the wallet.
-	WalletExport(context.Context, address.Address, string) (*types.KeyInfo, error)
+	WalletExport(context.Context, address.Address) (*types.KeyInfo, error)
 	// WalletImport receives a KeyInfo, which includes a private key, and imports it into the wallet.
 	WalletImport(context.Context, *types.KeyInfo) (address.Address, error)
 	// WalletDelete deletes an address from the wallet.
-	WalletDelete(context.Context, address.Address, string) error
+	WalletDelete(context.Context, address.Address) error
 	// WalletValidateAddress validates whether a given string can be decoded as a well-formed address
 	WalletValidateAddress(context.Context, string) (address.Address, error)
-	// WalletAddPasswd add wallet password, used to protect the wallet
-	WalletAddPasswd(ctx context.Context, passwd string, path string) error
-	// WalletLock
-	WalletLock(context.Context) error
-	// WalletUnlock
-	WalletUnlock(context.Context, string) error
-	// WalletIsLock
-	WalletIsLock(context.Context) (bool, error)
-	// Wallet Change Password
-	WalletChangePasswd(context.Context, string, string) (bool, error)
-	// Wallet Clear Passwd
-	WalletClearPasswd(context.Context, string) (bool, error)
 
+	// WalletCustomMethod wallet extension operation
+	WalletCustomMethod(context.Context, WalletMethod, []interface{}) (interface{}, error)
 	// Other
 
 	// MethodGroup: Client
@@ -1023,4 +1010,40 @@ type MsigTransaction struct {
 type AddrListEncrypt struct {
 	Addr    address.Address
 	Encrypt bool
+}
+
+type WalletMethod int64
+
+const (
+	Unknown            WalletMethod = 0
+	WalletListEnc      WalletMethod = 1
+	WalletExportForEnc WalletMethod = 2
+	WalletDeleteForEnc WalletMethod = 3
+
+	WalletLock         WalletMethod = 4
+	WalletUnlock       WalletMethod = 5
+	WalletIsLock       WalletMethod = 6
+	WalletAddPasswd    WalletMethod = 7
+	WalletChangePasswd WalletMethod = 8
+	WalletClearPasswd  WalletMethod = 9
+	WalletCheckPasswd  WalletMethod = 10
+)
+
+var WalletMethodStr = map[WalletMethod]string{
+	Unknown:            "Unknown",
+	WalletListEnc:      "WalletListEnc",
+	WalletExportForEnc: "WalletExportForEnc",
+	WalletDeleteForEnc: "WalletDeleteForEnc",
+
+	WalletLock:         "WalletLock",
+	WalletUnlock:       "WalletUnlock",
+	WalletIsLock:       "WalletIsLock",
+	WalletAddPasswd:    "WalletAddPasswd",
+	WalletChangePasswd: "WalletChangePasswd",
+	WalletClearPasswd:  "WalletClearPasswd",
+	WalletCheckPasswd:  "WalletCheckPasswd",
+}
+
+func (w WalletMethod) String() string {
+	return WalletMethodStr[w]
 }

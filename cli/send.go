@@ -67,17 +67,13 @@ var sendCmd = &cli.Command{
 			Name:  "force",
 			Usage: "must be specified for the action to take effect if maybe SysErrInsufficientFunds etc",
 		},
-		// &cli.StringFlag{
-		// 	Name:  "passwd",
-		// 	Usage: "unlock wallet with passwd",
-		// },
 	},
 	Action: func(cctx *cli.Context) error {
 		if cctx.Args().Len() != 2 {
 			return ShowHelp(cctx, fmt.Errorf("'send' expects two arguments, target and amount"))
 		}
 
-		api, closer, err := GetFullNodeAPI(cctx)
+		nodeApi, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
 			return err
 		}
@@ -97,7 +93,7 @@ var sendCmd = &cli.Command{
 
 		var fromAddr address.Address
 		if from := cctx.String("from"); from == "" {
-			defaddr, err := api.WalletDefaultAddress(ctx)
+			defaddr, err := nodeApi.WalletDefaultAddress(ctx)
 			if err != nil {
 				return err
 			}
@@ -125,7 +121,7 @@ var sendCmd = &cli.Command{
 
 		var params []byte
 		if cctx.IsSet("params-json") {
-			decparams, err := decodeTypedParams(ctx, api, toAddr, method, cctx.String("params-json"))
+			decparams, err := decodeTypedParams(ctx, nodeApi, toAddr, method, cctx.String("params-json"))
 			if err != nil {
 				return fmt.Errorf("failed to decode json params: %w", err)
 			}
@@ -155,30 +151,29 @@ var sendCmd = &cli.Command{
 
 		passwd := ""
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
-			// passwd := cctx.String("passwd")
-			passwd = wallet.Prompt("Enter your Password:\n")
-			if passwd == "" {
-				return fmt.Errorf("must enter your passwd")
-			}
-
-			addrs, err := api.WalletListEncryption(ctx)
+			rest, err := nodeApi.WalletCustomMethod(ctx, api.WalletIsLock, []interface{}{})
 			if err != nil {
 				return err
 			}
 
-			// check encrypt addr and password
-			for _, addr := range addrs {
-				if addr.Addr.String() == fromAddr.String() {
-					if addr.Encrypt && passwd == "" {
-						return fmt.Errorf("please enter the password")
-					}
-				}
+			if state := rest.(bool); state {
+				return fmt.Errorf("wallet is lock, dont send msg, please unlock wallet ! ")
+			}
+
+			passwd = wallet.Prompt("Enter your Password:\n")
+			if passwd == "" {
+				return fmt.Errorf("must enter your passwd")
+			}
+			rest, _ = nodeApi.WalletCustomMethod(ctx, api.WalletCheckPasswd, []interface{}{passwd})
+
+			if !rest.(bool) {
+				return fmt.Errorf("your passwd err")
 			}
 		}
 
 		if !cctx.Bool("force") {
 			// Funds insufficient check
-			fromBalance, err := api.WalletBalance(ctx, msg.From)
+			fromBalance, err := nodeApi.WalletBalance(ctx, msg.From)
 			if err != nil {
 				return err
 			}
@@ -192,19 +187,19 @@ var sendCmd = &cli.Command{
 
 		if cctx.IsSet("nonce") {
 			msg.Nonce = cctx.Uint64("nonce")
-			sm, err := api.WalletSignMessage2(ctx, fromAddr, msg, passwd)
+			sm, err := nodeApi.WalletSignMessage(ctx, fromAddr, msg)
 			if err != nil {
 				return err
 			}
 
-			_, err = api.MpoolPush(ctx, sm)
+			_, err = nodeApi.MpoolPush(ctx, sm)
 			if err != nil {
 				return err
 			}
 			fmt.Println(sm.Cid())
 
 		} else {
-			sm, err := api.MpoolPushMessage2(ctx, msg, nil, passwd)
+			sm, err := nodeApi.MpoolPushMessage(ctx, msg, nil)
 			if err != nil {
 				return err
 			}

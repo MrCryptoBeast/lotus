@@ -151,7 +151,7 @@ func (c *InteractiveWallet) WalletSign(ctx context.Context, k address.Address, m
 	return c.under.WalletSign(ctx, k, msg, meta)
 }
 
-func (c *InteractiveWallet) WalletExport(ctx context.Context, a address.Address, pass string) (*types.KeyInfo, error) {
+func (c *InteractiveWallet) WalletExport(ctx context.Context, a address.Address) (*types.KeyInfo, error) {
 	err := c.accept(func() error {
 		fmt.Println("-----")
 		fmt.Println("ACTION: WalletExport - Export private key")
@@ -162,7 +162,7 @@ func (c *InteractiveWallet) WalletExport(ctx context.Context, a address.Address,
 		return nil, err
 	}
 
-	return c.under.WalletExport(ctx, a, pass)
+	return c.under.WalletExport(ctx, a)
 }
 
 func (c *InteractiveWallet) WalletImport(ctx context.Context, ki *types.KeyInfo) (address.Address, error) {
@@ -179,7 +179,7 @@ func (c *InteractiveWallet) WalletImport(ctx context.Context, ki *types.KeyInfo)
 	return c.under.WalletImport(ctx, ki)
 }
 
-func (c *InteractiveWallet) WalletDelete(ctx context.Context, addr address.Address, pass string) error {
+func (c *InteractiveWallet) WalletDelete(ctx context.Context, addr address.Address) error {
 	err := c.accept(func() error {
 		fmt.Println("-----")
 		fmt.Println("ACTION: WalletDelete - Delete a private key")
@@ -190,43 +190,21 @@ func (c *InteractiveWallet) WalletDelete(ctx context.Context, addr address.Addre
 		return err
 	}
 
-	return c.under.WalletDelete(ctx, addr, pass)
+	return c.under.WalletDelete(ctx, addr)
 }
 
-func (c *InteractiveWallet) WalletListEncryption(ctx context.Context) ([]api.AddrListEncrypt, error) {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletSignMessage2(ctx context.Context, a address.Address, message *types.Message, s string) (*types.SignedMessage, error) {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletLock(ctx context.Context) error {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletUnlock(ctx context.Context, s string) error {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletIsLock(ctx context.Context) (bool, error) {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletChangePasswd(ctx context.Context, s string, passwd string) (bool, error) {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) DeleteKey2(a address.Address) error {
-	panic("implement me")
-}
-
-func (c *InteractiveWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
-	panic("implement me")
+func (c *InteractiveWallet) WalletCustomMethod(ctx context.Context, meth api.WalletMethod, args []interface{}) (interface{}, error) {
+	err := c.accept(func() error {
+		fmt.Println("-----")
+		fmt.Println("ACTION: WalletCustomMethod - Wallet extension operation")
+		fmt.Printf("METHOD: %s\n", meth)
+		fmt.Printf("Args: %s\n", args)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return c.under.WalletCustomMethod(ctx, meth, args)
 }
 
 func (c *InteractiveWallet) accept(prompt func() error) error {

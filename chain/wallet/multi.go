@@ -89,19 +89,6 @@ func (m MultiWallet) WalletHas(ctx context.Context, address address.Address) (bo
 	return w != nil, err
 }
 
-func (m MultiWallet) WalletListEncryption(ctx context.Context) ([]api.AddrListEncrypt, error) {
-	ws := nonNil(m.Remote, m.Ledger, m.Local)
-	for _, w := range ws {
-		l, err := w.WalletListEncryption(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return l, err
-	}
-
-	return nil, nil
-}
-
 func (m MultiWallet) WalletList(ctx context.Context) ([]address.Address, error) {
 	out := make([]address.Address, 0)
 	seen := map[address.Address]struct{}{}
@@ -138,7 +125,7 @@ func (m MultiWallet) WalletSign(ctx context.Context, signer address.Address, toS
 	return w.WalletSign(ctx, signer, toSign, meta)
 }
 
-func (m MultiWallet) WalletExport(ctx context.Context, address address.Address, password string) (*types.KeyInfo, error) {
+func (m MultiWallet) WalletExport(ctx context.Context, address address.Address) (*types.KeyInfo, error) {
 	w, err := m.find(ctx, address, m.Remote, m.Local)
 	if err != nil {
 		return nil, err
@@ -147,7 +134,7 @@ func (m MultiWallet) WalletExport(ctx context.Context, address address.Address, 
 		return nil, xerrors.Errorf("key not found")
 	}
 
-	return w.WalletExport(ctx, address, password)
+	return w.WalletExport(ctx, address)
 }
 
 func (m MultiWallet) WalletImport(ctx context.Context, info *types.KeyInfo) (address.Address, error) {
@@ -164,7 +151,7 @@ func (m MultiWallet) WalletImport(ctx context.Context, info *types.KeyInfo) (add
 	return w.WalletImport(ctx, info)
 }
 
-func (m MultiWallet) WalletDelete(ctx context.Context, address address.Address, pass string) error {
+func (m MultiWallet) WalletDelete(ctx context.Context, address address.Address) error {
 	for {
 		w, err := m.find(ctx, address, m.Remote, m.Ledger, m.Local)
 		if err != nil {
@@ -174,44 +161,91 @@ func (m MultiWallet) WalletDelete(ctx context.Context, address address.Address, 
 			return nil
 		}
 
-		if err := w.WalletDelete(ctx, address, pass); err != nil {
+		if err := w.WalletDelete(ctx, address); err != nil {
 			return err
 		}
 	}
 }
 
-func (m MultiWallet) WalletChangePasswd(ctx context.Context, oldpasswd, newPasswd string) (bool, error) {
-	return m.Local.WalletChangePasswd(ctx, oldpasswd, newPasswd)
+//add MultiWallet Support extended
+
+func (m MultiWallet) WalletListEncryption(ctx context.Context) ([]api.AddrListEncrypt, error) {
+	out := make([]api.AddrListEncrypt, 0)
+	ws := nonNil(m.Remote, m.Ledger, m.Local)
+	for _, w := range ws {
+		if w == m.Local.Get() {
+			l, err := m.Local.WalletListEncryption(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, l...)
+		} else {
+			l, err := w.WalletList(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for _, v := range l {
+				out = append(out, api.AddrListEncrypt{
+					Addr:    v,
+					Encrypt: false,
+				})
+			}
+		}
+	}
+	return out, nil
+}
+func (m MultiWallet) WalletExportEnc(ctx context.Context, address address.Address, passwd string) (*types.KeyInfo, error) {
+	w, err := m.find(ctx, address, m.Remote, m.Local)
+	if err != nil {
+		return nil, err
+	}
+	if w == nil {
+		return nil, xerrors.Errorf("key not found")
+	}
+	if w == m.Local.Get() {
+		return m.Local.WalletExportForEnc(ctx, address, passwd)
+	}
+	return w.WalletExport(ctx, address)
+}
+func (m MultiWallet) WalletDeleteForEnc(ctx context.Context, address address.Address, passwd string) error {
+	w, err := m.find(ctx, address, m.Remote, m.Ledger, m.Local)
+	if err != nil {
+		return err
+	}
+	if w == nil {
+		return nil
+	}
+	if w == m.Local.Get() {
+		return m.Local.WalletDeleteForEnc(ctx, address, passwd)
+	}
+	return w.WalletDelete(ctx, address)
 }
 
-func (m MultiWallet) DeleteKey2(addr address.Address) error {
-	return m.Local.DeleteKey2(addr)
-}
+// WalletCustomMethod Only local wallet extensions are supported
+func (m MultiWallet) WalletCustomMethod(ctx context.Context, meth api.WalletMethod, args []interface{}) (interface{}, error) {
+	log.Debugf("WalletCustomMethod args is %+v \n", args)
+	switch meth {
+	case api.WalletListEnc:
+		return m.WalletListEncryption(ctx)
+	case api.WalletExportForEnc:
+		if len(args) < 2 {
+			return nil, xerrors.Errorf("args must is 2 for exec method, but get args is %v", len(args))
+		}
+		addr_str := args[0].(string)
+		addr, _ := address.NewFromString(addr_str)
+		passwd := args[1].(string)
+		return m.WalletExportEnc(ctx, addr, passwd)
+	case api.WalletDeleteForEnc:
+		if len(args) < 2 {
+			return nil, xerrors.Errorf("args must is 2 for exec method, but get args is %v", len(args))
+		}
+		addr_str := args[0].(string)
+		addr, _ := address.NewFromString(addr_str)
 
-func (m MultiWallet) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
-	return m.Local.WalletClearPasswd(ctx, passwd)
-}
-
-// WalletIsLock
-func (m MultiWallet) WalletIsLock(ctx context.Context) (bool, error) {
-	return m.Local.WalletIsLock(ctx)
-}
-
-func (m MultiWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
-	return m.Local.WalletAddPasswd(ctx, passwd, path)
-}
-
-func (m MultiWallet) WalletLock(ctx context.Context) error {
-	return m.Local.WalletLock(ctx)
-}
-
-// // WalletUnlock
-func (m MultiWallet) WalletUnlock(ctx context.Context, password string) error {
-	return m.Local.WalletUnlock(ctx, password)
-}
-
-func (m MultiWallet) WalletSignMessage2(ctx context.Context, k address.Address, msg *types.Message, passwd string) (*types.SignedMessage, error) {
-	return m.Local.WalletSignMessage2(ctx, k, msg, passwd)
+		passwd := args[1].(string)
+		return nil, m.WalletDeleteForEnc(ctx, addr, passwd)
+	}
+	return m.Local.WalletCustomMethod(ctx, meth, args)
 }
 
 var _ api.WalletAPI = MultiWallet{}

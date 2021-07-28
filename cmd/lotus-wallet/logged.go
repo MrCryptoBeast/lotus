@@ -70,10 +70,10 @@ func (c *LoggedWallet) WalletSign(ctx context.Context, k address.Address, msg []
 	return c.under.WalletSign(ctx, k, msg, meta)
 }
 
-func (c *LoggedWallet) WalletExport(ctx context.Context, a address.Address, pass string) (*types.KeyInfo, error) {
+func (c *LoggedWallet) WalletExport(ctx context.Context, a address.Address) (*types.KeyInfo, error) {
 	log.Infow("WalletExport", "address", a)
 
-	return c.under.WalletExport(ctx, a, pass)
+	return c.under.WalletExport(ctx, a)
 }
 
 func (c *LoggedWallet) WalletImport(ctx context.Context, ki *types.KeyInfo) (address.Address, error) {
@@ -82,44 +82,13 @@ func (c *LoggedWallet) WalletImport(ctx context.Context, ki *types.KeyInfo) (add
 	return c.under.WalletImport(ctx, ki)
 }
 
-func (c *LoggedWallet) WalletDelete(ctx context.Context, addr address.Address, pass string) error {
+func (c *LoggedWallet) WalletDelete(ctx context.Context, addr address.Address) error {
 	log.Infow("WalletDelete", "address", addr)
 
-	return c.under.WalletDelete(ctx, addr, pass)
+	return c.under.WalletDelete(ctx, addr)
 }
 
-func (c *LoggedWallet) WalletListEncryption(ctx context.Context) ([]api.AddrListEncrypt, error) {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletSignMessage2(ctx context.Context, a address.Address, message *types.Message, s string) (*types.SignedMessage, error) {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletLock(ctx context.Context) error {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletUnlock(ctx context.Context, s string) error {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletIsLock(ctx context.Context) (bool, error) {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletChangePasswd(ctx context.Context, s string, passwd string) (bool, error) {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) DeleteKey2(a address.Address) error {
-	panic("implement me")
-}
-
-func (c *LoggedWallet) WalletAddPasswd(ctx context.Context, passwd string, path string) error {
-	panic("implement me")
+func (c *LoggedWallet) WalletCustomMethod(ctx context.Context, meth api.WalletMethod, args []interface{}) (interface{}, error) {
+	log.Infof("WalletCustomMethod  meth %+v args %+v ", meth, args)
+	return c.under.WalletCustomMethod(ctx, meth, args)
 }

@@ -94,11 +94,11 @@ func (lw LedgerWallet) getKeyInfo(addr address.Address) (*LedgerKeyInfo, error) 
 	return &out, nil
 }
 
-func (lw LedgerWallet) WalletDelete(ctx context.Context, k address.Address, password string) error {
+func (lw LedgerWallet) WalletDelete(ctx context.Context, k address.Address) error {
 	return lw.ds.Delete(keyForAddr(k))
 }
 
-func (lw LedgerWallet) WalletExport(ctx context.Context, k address.Address, pass string) (*types.KeyInfo, error) {
+func (lw LedgerWallet) WalletExport(ctx context.Context, k address.Address) (*types.KeyInfo, error) {
 	return nil, fmt.Errorf("cannot export keys from ledger wallets")
 }
 
@@ -138,10 +138,6 @@ func (lw LedgerWallet) importKey(ki LedgerKeyInfo) (address.Address, error) {
 	}
 
 	return ki.Address, nil
-}
-
-func (lw LedgerWallet) WalletListEncryption(context.Context) ([]api.AddrListEncrypt, error) {
-	return nil, nil
 }
 
 func (lw LedgerWallet) WalletList(ctx context.Context) ([]address.Address, error) {
@@ -231,40 +227,9 @@ func (lw LedgerWallet) WalletNew(ctx context.Context, t types.KeyType) (address.
 	return lw.importKey(lki)
 }
 
-func (lw *LedgerWallet) WalletSignMessage2(context.Context, address.Address, *types.Message, string) (*types.SignedMessage, error) {
-	return nil, nil
-}
-
-func (lw *LedgerWallet) WalletAddPasswd(context.Context, string, string) error {
-	return nil
-}
-
-func (lw *LedgerWallet) WalletLock(context.Context) error {
-	return nil
-}
-
-// WalletUnlock
-func (lw *LedgerWallet) WalletUnlock(context.Context, string) error {
-	return nil
-}
-
-// WalletIsLock
-func (lw *LedgerWallet) WalletIsLock(context.Context) (bool, error) {
-	return false, nil
-}
-
-// Wallet Change Password
-func (lw *LedgerWallet) WalletChangePasswd(context.Context, string, string) (bool, error) {
-	return false, nil
-}
-
-// Wallet Clear Passwd
-func (lw *LedgerWallet) WalletClearPasswd(context.Context, string) (bool, error) {
-	return false, nil
-}
-
-func (lw *LedgerWallet) DeleteKey2(address.Address) error {
-	return nil
+// WalletCustomMethod dont use this method for LedgerWallet
+func (lw *LedgerWallet) WalletCustomMethod(ctx context.Context, meth api.WalletMethod, args []interface{}) (interface{}, error) {
+	return nil, xerrors.Errorf("LedgerWallet do not support extension operations for the time being")
 }
 
 func (lw *LedgerWallet) Get() api.WalletAPI {

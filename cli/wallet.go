@@ -18,6 +18,7 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/mitchellh/go-homedir"
 
+	lapi "github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/lib/tablewriter"
@@ -38,10 +39,10 @@ var walletCmd = &cli.Command{
 		walletVerify,
 		walletDelete,
 		walletMarket,
-		walletAddPasswd,
 		walletLock,
 		walletUnlock,
 		walletIsLock,
+		walletAddPasswd,
 		walletChangePasswd,
 		walletClearPasswd,
 	},
@@ -102,11 +103,13 @@ var walletList = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-
-		encryptAddrs, err := api.WalletListEncryption(ctx)
+		rest, err := api.WalletCustomMethod(ctx, lapi.WalletListEnc, []interface{}{})
 		if err != nil {
 			return err
 		}
+		addrs, _ := json.Marshal(rest)
+		encryptAddrs := make([]lapi.AddrListEncrypt, 0)
+		json.Unmarshal(addrs, &encryptAddrs)
 
 		// Assume an error means no default key is set
 		def, _ := api.WalletDefaultAddress(ctx)
@@ -266,12 +269,6 @@ var walletExport = &cli.Command{
 	Name:      "export",
 	Usage:     "export keys",
 	ArgsUsage: "[address]",
-	// Flags: []cli.Flag{
-	// 	&cli.StringFlag{
-	// 		Name:  "passwd",
-	// 		Usage: "unlock wallet with passwd",
-	// 	},
-	// },
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -286,27 +283,33 @@ var walletExport = &cli.Command{
 
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Errorf("invaild address payload")
+				fmt.Println("invaild address payload")
 			}
 		}()
-
-		passwd := ""
-		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
-			// passwd := cctx.String("passwd")
-			passwd = wallet.Prompt("Enter your Password:\n")
-			if passwd == "" {
-				return xerrors.Errorf("must enter your passwd")
-			}
-		}
 
 		addr, err := address.NewFromString(cctx.Args().First())
 		if err != nil {
 			return err
 		}
 
-		ki, err := api.WalletExport(ctx, addr, passwd)
-		if err != nil {
-			return err
+		passwd := ""
+		var ki *types.KeyInfo
+		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			// passwd := cctx.String("passwd")
+			passwd = wallet.Prompt("Enter your Password:\n")
+			if passwd == "" {
+				return xerrors.Errorf("must enter your passwd")
+			}
+			rest, err := api.WalletCustomMethod(ctx, lapi.WalletExportForEnc, []interface{}{addr, passwd})
+			if err != nil {
+				return err
+			}
+			ki = rest.(*types.KeyInfo)
+		} else {
+			ki, err = api.WalletExport(ctx, addr)
+			if err != nil {
+				return err
+			}
 		}
 
 		b, err := json.Marshal(ki)
@@ -513,12 +516,6 @@ var walletDelete = &cli.Command{
 	Name:      "delete",
 	Usage:     "Delete an account from the wallet",
 	ArgsUsage: "<address> ",
-	Flags:     []cli.Flag{
-		// &cli.StringFlag{
-		// 	Name:  "passwd",
-		// 	Usage: "unlock wallet with passwd",
-		// },
-	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -531,6 +528,11 @@ var walletDelete = &cli.Command{
 			return fmt.Errorf("must specify address to delete")
 		}
 
+		addr, err := address.NewFromString(cctx.Args().First())
+		if err != nil {
+			return err
+		}
+
 		passwd := ""
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
 			// passwd := cctx.String("passwd")
@@ -538,65 +540,17 @@ var walletDelete = &cli.Command{
 			if passwd == "" {
 				return xerrors.Errorf("Must enter your passwd")
 			}
+			_, err := api.WalletCustomMethod(ctx, lapi.WalletDeleteForEnc, []interface{}{addr, passwd})
+			if err != nil {
+				return err
+			}
+		} else {
+			if err := api.WalletDelete(ctx, addr); err != nil {
+				return err
+			}
 		}
 
-		addr, err := address.NewFromString(cctx.Args().First())
-		if err != nil {
-			return err
-		}
-		if err := api.WalletDelete(ctx, addr, passwd); err != nil {
-			return err
-		}
 		fmt.Println("delete an account success")
-		return nil
-	},
-}
-
-var walletAddPasswd = &cli.Command{
-	Name:  "addpasswd",
-	Usage: "add a password for wallet",
-	Action: func(cctx *cli.Context) error {
-		api, closer, err := GetFullNodeAPI(cctx)
-		if err != nil {
-			return err
-		}
-		defer closer()
-		ctx := ReqContext(cctx)
-
-		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
-			fmt.Println("passwd is setup,no need to setup again")
-			return nil
-		}
-
-		passwd := wallet.Prompt("Enter your password:\n")
-		if passwd == "" {
-			return xerrors.Errorf("must enter your passwd")
-		}
-		err = api.WalletAddPasswd(ctx, passwd, getWalletRepo(cctx))
-		if err != nil {
-			fmt.Println(err.Error())
-			return err
-		}
-		fmt.Println("add wallet password success")
-		return nil
-	},
-}
-
-var walletLock = &cli.Command{
-	Name:  "lock",
-	Usage: "Lock wallet",
-	Action: func(cctx *cli.Context) error {
-		api, closer, err := GetFullNodeAPI(cctx)
-		if err != nil {
-			return err
-		}
-		defer closer()
-		ctx := ReqContext(cctx)
-		err = api.WalletLock(ctx)
-		if err != nil {
-			return err
-		}
-		fmt.Println("lock wallet success")
 		return nil
 	},
 }
@@ -786,15 +740,28 @@ var walletMarketAdd = &cli.Command{
 	},
 }
 
+var walletLock = &cli.Command{
+	Name:  "lock",
+	Usage: "Lock wallet",
+	Action: func(cctx *cli.Context) error {
+		api, closer, err := GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+		ctx := ReqContext(cctx)
+		_, err = api.WalletCustomMethod(ctx, lapi.WalletLock, []interface{}{})
+		if err != nil {
+			return err
+		}
+		fmt.Println("lock wallet success")
+		return nil
+	},
+}
+
 var walletUnlock = &cli.Command{
 	Name:  "unlock",
 	Usage: "Unlock wallet",
-	// Flags: []cli.Flag{
-	// 	&cli.StringFlag{
-	// 		Name:  "passwd",
-	// 		Usage: "unlock wallet with passwd",
-	// 	},
-	// },
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -811,9 +778,12 @@ var walletUnlock = &cli.Command{
 		if passwd == "" {
 			return xerrors.Errorf("must enter your passwd")
 		}
-		if err := api.WalletUnlock(ctx, passwd); err != nil {
+
+		_, err = api.WalletCustomMethod(ctx, lapi.WalletUnlock, []interface{}{passwd})
+		if err != nil {
 			return err
 		}
+
 		fmt.Println("unlock wallet success")
 		return nil
 	},
@@ -829,12 +799,12 @@ var walletIsLock = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
-
-		state, err := api.WalletIsLock(ctx)
+		rest, err := api.WalletCustomMethod(ctx, lapi.WalletIsLock, []interface{}{})
 		if err != nil {
 			return err
 		}
 
+		state := rest.(bool)
 		if state {
 			fmt.Println("wallet is lock")
 		} else {
@@ -845,15 +815,39 @@ var walletIsLock = &cli.Command{
 	},
 }
 
+var walletAddPasswd = &cli.Command{
+	Name:  "addpasswd",
+	Usage: "add a password for wallet",
+	Action: func(cctx *cli.Context) error {
+		api, closer, err := GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+		ctx := ReqContext(cctx)
+
+		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("passwd is setup,no need to setup again")
+			return nil
+		}
+
+		passwd := wallet.Prompt("Enter your password:\n")
+		if passwd == "" {
+			return xerrors.Errorf("must enter your passwd")
+		}
+		_, err = api.WalletCustomMethod(ctx, lapi.WalletAddPasswd, []interface{}{passwd, getWalletRepo(cctx)})
+		if err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		fmt.Println("add wallet password success")
+		return nil
+	},
+}
+
 var walletChangePasswd = &cli.Command{
 	Name:  "changepasswd",
 	Usage: "Change wallet passwd",
-	Flags: []cli.Flag{
-		// &cli.StringFlag{
-		// 	Name:  "passwd",
-		// 	Usage: "unlock wallet with passwd",
-		// },
-	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := GetFullNodeAPI(cctx)
 		if err != nil {
@@ -875,8 +869,7 @@ var walletChangePasswd = &cli.Command{
 		if passwd == "" {
 			return xerrors.Errorf("Must enter your new passwd")
 		}
-
-		_, err = api.WalletChangePasswd(ctx, passwd, newPasswd)
+		_, err = api.WalletCustomMethod(ctx, lapi.WalletChangePasswd, []interface{}{passwd, newPasswd})
 		if err != nil {
 			return err
 		}
@@ -904,8 +897,7 @@ var walletClearPasswd = &cli.Command{
 		if passwd == "" {
 			return xerrors.Errorf("Must enter your passwd")
 		}
-
-		_, err = api.WalletClearPasswd(ctx, passwd)
+		_, err = api.WalletCustomMethod(ctx, lapi.WalletClearPasswd, []interface{}{passwd})
 		if err != nil {
 			return err
 		}

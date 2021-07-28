@@ -124,6 +124,9 @@ func ClearPasswd() error {
 }
 
 func CheckPasswd(key []byte) error {
+	if len(key) != 16 {
+		return xerrors.Errorf("passwd must 16 character")
+	}
 	fstat, err := os.Stat(passwdPath)
 	if os.IsNotExist(err) {
 		return xerrors.Errorf("opening file '%s': file info not found", passwdPath)
@@ -194,8 +197,17 @@ func GetSetupStateForLocal(path string) bool {
 	return true
 }
 
+//IsSetup check setup password for wallet
 func IsSetup() bool {
 	if passwdPath == "" {
+		return false
+	}
+	return true
+}
+
+//IsSetup check setup lock for wallet
+func IsLock() bool {
+	if WalletPasswd != "" {
 		return false
 	}
 	return true
