@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/filecoin-project/lotus/chain/types"
+	"golang.org/x/xerrors"
 )
 
 /*
@@ -55,7 +58,7 @@ type KeyInfo struct {
 func AESEncrypt(key, plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("passwd must be 16 character")
+		return nil, xerrors.Errorf("passwd must 6 to 16 characters")
 	}
 
 	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
@@ -73,9 +76,9 @@ func AESEncrypt(key, plaintext []byte) ([]byte, error) {
 func AESDecrypt(key, ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("passwd must be 16 character")
+		return nil, xerrors.Errorf("passwd must 6 to 16 characters")
 	} else if len(ciphertext) < aes.BlockSize {
-		return nil, fmt.Errorf("passwd must be 16 character")
+		return nil, xerrors.Errorf("passwd must 6 to 16 characters")
 	}
 
 	iv := ciphertext[:aes.BlockSize]
@@ -98,22 +101,26 @@ func SetupPasswd(key []byte, path string) error {
 	key = completionPwd(key)
 	_, err := os.Stat(path)
 	if err == nil {
-		return fmt.Errorf("checking file before Setup passwd '%s': file already exists", path)
+		return xerrors.Errorf("checking file before Setup passwd '%s': file already exists", path)
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("checking file before Setup passwd '%s': %w", path, err)
+		return xerrors.Errorf("checking file before Setup passwd '%s': %w", path, err)
 	}
 
-	msg, err := AESEncrypt(key, []byte(checkMsg))
+	//msg, err := AESEncrypt(key, []byte(checkMsg))
+	m5 := md5.Sum(key)
+	m5passwd := hex.EncodeToString(m5[:])
+	msg, err := AESEncrypt(m5[:], []byte(checkMsg))
 	if err != nil {
 		return err
 	}
 
 	err = ioutil.WriteFile(path, msg, 0600)
 	if err != nil {
-		return fmt.Errorf("writing file '%s': %w", path, err)
+		return xerrors.Errorf("writing file '%s': %w", path, err)
 	}
 
-	WalletPasswd = string(key)
+	//WalletPasswd = string(key)
+	WalletPasswd = m5passwd
 	passwdPath = path
 
 	return nil
@@ -156,25 +163,31 @@ func CheckPasswd(key []byte) error {
 		return fmt.Errorf("permissions of key: '%s' are too relaxed, required: 0600, got: %#o", passwdPath, fstat.Mode())
 	}
 
+	if fstat.Mode()&0077 != 0 {
+		return xerrors.Errorf("permissions of key: '%s' are too relaxed, required: 0600, got: %#o", passwdPath, fstat.Mode())
+	}
+
 	file, err := os.Open(passwdPath)
 	if err != nil {
-		return fmt.Errorf("opening file '%s': %w", passwdPath, err)
+		return xerrors.Errorf("opening file '%s': %w", passwdPath, err)
 	}
 	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return fmt.Errorf("reading file '%s': %w", passwdPath, err)
+		return xerrors.Errorf("reading file '%s': %w", passwdPath, err)
 	}
 
-	text, err := AESDecrypt(key, data)
+	//text, err := AESDecrypt(key, data)
+	m5 := md5.Sum(key)
+	text, err := AESDecrypt(m5[:], data)
 	if err != nil {
 		return err
 	}
 
 	str := string(text)
 	if checkMsg != str {
-		return fmt.Errorf("check passwd is failed")
+		return xerrors.Errorf("check passwd is failed")
 	}
 
 	return nil
@@ -253,7 +266,9 @@ func UnMakeByte(pk []byte) ([]byte, error) {
 	} else if !IsLock() {
 		msg := make([]byte, len(pk)-4)
 		copy(msg, pk[4:])
-		return AESDecrypt([]byte(WalletPasswd), msg)
+		//return AESDecrypt([]byte(WalletPasswd), msg)
+		m5_passwd, _ := hex.DecodeString(WalletPasswd)
+		return AESDecrypt(m5_passwd, msg)
 	}
 	return nil, fmt.Errorf("wallet is lock")
 }
@@ -268,7 +283,9 @@ func MakeByte(pk []byte) ([]byte, error) {
 		return nil, fmt.Errorf("wallet is lock")
 	}
 
-	msg, err := AESEncrypt([]byte(WalletPasswd), pk)
+	//msg, err := AESEncrypt([]byte(WalletPasswd), pk)
+	m5_passwd, _ := hex.DecodeString(WalletPasswd)
+	msg, err := AESEncrypt(m5_passwd, pk)
 	if err != nil {
 		return nil, err
 	}
@@ -276,47 +293,11 @@ func MakeByte(pk []byte) ([]byte, error) {
 	copy(text[:4], addrPrefix)
 	copy(text[4:], msg)
 	return text, nil
-
-	// if IsLock() {
-	// 	if !bytes.Equal(pk[:4], addrPrefix) && !encrypt {
-	// 		return pk, nil
-	// 	}
-	// 	return nil, xerrors.Errorf("Wallet is lock")
-	// } else {
-	// 	fmt.Println("Wallet is unlock")
-	// 	if pk[0] == 0xff && pk[1] == 0xff && pk[2] == 0xff && pk[3] == 0xff {
-	// 		fmt.Println("Decrypt Private Key")
-	// 		msg := make([]byte, len(pk)-4)
-	// 		for i := range pk {
-	// 			if i >= 4 {
-	// 				msg[i-4] = pk[i]
-	// 			}
-	// 		}
-	// 		return AESDecrypt([]byte(WalletPasswd), msg)
-	// 	} else if encrypt {
-	// 		fmt.Println("Encrypt Private Key")
-	// 		msg, err := AESEncrypt([]byte(WalletPasswd), pk)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		text := make([]byte, len(msg)+4)
-	// 		text[0] = 0xff
-	// 		text[1] = 0xff
-	// 		text[2] = 0xff
-	// 		text[3] = 0xff
-	// 		for i := range msg {
-	// 			text[4+i] = msg[i]
-	// 		}
-	// 		return text, nil
-	// 	}
-	// 	fmt.Println("Keep Private Key")
-	// }
-	// return pk, nil
 }
 
 func RegexpPasswd(passwd string) error {
-	if ok, _ := regexp.MatchString(`^[a-zA-Z].{5,15}`, passwd); !ok {
-		return fmt.Errorf("new passwd Invalid format; The beginning of the letter, any 6 to 16 char. ")
+	if ok, _ := regexp.MatchString(`^[a-zA-Z].{5,15}`, passwd); len(passwd) > 16 || !ok {
+		return fmt.Errorf("invalid password format. (The beginning of the letter, 6 to 16 characters.)")
 	}
 	return nil
 }

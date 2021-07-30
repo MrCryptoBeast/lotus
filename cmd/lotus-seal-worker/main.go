@@ -32,6 +32,7 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/apistruct"
 	"github.com/filecoin-project/lotus/build"
+	"github.com/filecoin-project/lotus/chain/types"
 	lcli "github.com/filecoin-project/lotus/cli"
 	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"github.com/filecoin-project/lotus/extern/sector-storage/sealtasks"
@@ -107,32 +108,32 @@ var autoTaskCmd = &cli.Command{
 	Usage: "Start auto task worker",
 	Flags: []cli.Flag{
 		&cli.Int64Flag{
-			Name: "app1",
+			Name:  "app1",
 			Usage: "auto task ap count",
 			Value: 0,
 		},
 		&cli.Int64Flag{
-			Name: "p2",
+			Name:  "p2",
 			Usage: "auto task p2 count",
 			Value: 0,
 		},
 		&cli.Int64Flag{
-			Name: "c1",
+			Name:  "c1",
 			Usage: "auto task c1 count",
 			Value: 0,
 		},
 		&cli.Int64Flag{
-			Name: "c2",
+			Name:  "c2",
 			Usage: "auto task c2 count",
 			Value: 0,
 		},
 		&cli.Uint64Flag{
-			Name: "balance",
+			Name:  "balance",
 			Usage: "auto task balance",
 			Value: 0,
 		},
 		&cli.Int64Flag{
-			Name: "delay",
+			Name:  "delay",
 			Usage: "auto task delay (Seconds)",
 			Value: 180,
 		},
@@ -189,7 +190,7 @@ var autoTaskCmd = &cli.Command{
 		}
 		Closer()
 
-		sigs := make(chan os.Signal,1)
+		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 		timer := time.NewTicker(time.Duration(delay) * time.Second)
@@ -204,7 +205,7 @@ var autoTaskCmd = &cli.Command{
 					continue
 				}
 				isSend := wapi.AutoTaskLimit(lcli.ReqContext(cctx))
-				if !isSend.IsSend{
+				if !isSend.IsSend {
 					log.Error("auto task AutoTaskLimit failed")
 					workerApiCloser()
 					continue

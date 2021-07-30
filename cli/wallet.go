@@ -761,6 +761,10 @@ var walletLock = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+		if !wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("Passwd is not setup")
+			return nil
+		}
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletLock, []interface{}{})
 		if err != nil {
 			return err
@@ -814,6 +818,10 @@ var walletIsLock = &cli.Command{
 		}
 		defer closer()
 		ctx := ReqContext(cctx)
+		if !wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			fmt.Println("Passwd is not setup")
+			return nil
+		}
 		rest, err := api.WalletCustomMethod(ctx, lapi.WalletIsLock, []interface{}{})
 		if err != nil {
 			return err
@@ -849,6 +857,15 @@ var walletAddPasswd = &cli.Command{
 		passwd := wallet.Prompt("Enter your password:\n")
 		if passwd == "" {
 			return fmt.Errorf("must enter your passwd")
+		}
+
+		passwd_ag := wallet.Prompt("Enter your password again:\n")
+		if passwd_ag == "" {
+			return fmt.Errorf("must enter your passwd")
+		}
+
+		if passwd != passwd_ag {
+			return fmt.Errorf("the two passwords do not match")
 		}
 
 		if err := wallet.RegexpPasswd(passwd); err != nil {
