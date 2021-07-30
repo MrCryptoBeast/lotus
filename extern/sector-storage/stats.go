@@ -207,6 +207,19 @@ func (m *Manager) TrySched(ctx context.Context, group, sectorSize string) (bool,
 	m.sched.workersLk.RLock()
 	defer m.sched.workersLk.RUnlock()
 	sh := m.sched
+	queuneLen := sh.schedQueue.Len()
+	for i := 0; i < queuneLen; i++ {
+		task := (*sh.schedQueue)[i]
+		if group == "all" {
+			if task.taskType == sealtasks.TTAddPiece {
+				return false, xerrors.Errorf("schedQueue has task wait sched：%s", group)
+			}
+		}else {
+			if task.group == group && task.taskType == sealtasks.TTAddPiece {
+				return false, xerrors.Errorf("schedQueue has task wait sched：%s", group)
+			}
+		}
+	}
 	wList := make([]WorkerID, 0)
 	if group == "all" {
 		allList := sh.execGroupList.list

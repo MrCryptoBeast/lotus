@@ -112,6 +112,7 @@ func (sw *schedWorker) handleWorker() {
 		}
 
 		sched.workersLk.Lock()
+		sw.sched.deleteGroupListWithWorker(sw.worker.info.Group ,sw.wid)
 		delete(sched.workers, sw.wid)
 		sched.workersLk.Unlock()
 	}()
@@ -186,7 +187,6 @@ func (sw *schedWorker) handleWorker() {
 
 func (sw *schedWorker) disable(ctx context.Context) error {
 	done := make(chan struct{})
-	sw.sched.deleteGroupListWithWorker(sw.worker.info.Group ,sw.wid)
 
 	// request cleanup in the main scheduler goroutine
 	select {

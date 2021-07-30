@@ -22,6 +22,7 @@ import (
 	"github.com/filecoin-project/lotus/extern/sector-storage/fsutil"
 	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
 	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
+	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 )
 
 // StorageMiner is a low-level interface to the Filecoin network storage miner node
@@ -149,6 +150,10 @@ type StorageMiner interface {
 	CreateBackup(ctx context.Context, fpath string) error
 
 	CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof, sectors []storage.SectorRef, expensive bool) (map[abi.SectorNumber]string, error)
+
+	GetStateMinerInfo(ctx context.Context, addr address.Address) (miner.MinerInfo, error)
+
+	GetWalletBalance(context.Context, address.Address) (types.BigInt, error)
 }
 
 type SealRes struct {

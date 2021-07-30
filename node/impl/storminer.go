@@ -39,6 +39,7 @@ import (
 	"github.com/filecoin-project/lotus/storage"
 	"github.com/filecoin-project/lotus/storage/sectorblocks"
 	sto "github.com/filecoin-project/specs-storage/storage"
+	miner2 "github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 )
 
 type StorageMinerAPI struct {
@@ -682,6 +683,14 @@ func (sm *StorageMinerAPI) CheckProvable(ctx context.Context, pp abi.RegisteredP
 
 func (sm *StorageMinerAPI) ActorAddressConfig(ctx context.Context) (api.AddressConfig, error) {
 	return sm.AddrSel.AddressConfig, nil
+}
+
+func (sm *StorageMinerAPI) GetStateMinerInfo(ctx context.Context, addr address.Address) (miner2.MinerInfo, error)  {
+	return sm.Full.StateMinerInfo(ctx, addr, types.EmptyTSK)
+}
+
+func (sm *StorageMinerAPI) GetWalletBalance(ctx context.Context, addr address.Address) (types.BigInt, error)  {
+	return sm.Full.WalletBalance(ctx, addr)
 }
 
 var _ api.StorageMiner = &StorageMinerAPI{}
