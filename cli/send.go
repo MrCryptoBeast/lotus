@@ -164,6 +164,11 @@ var sendCmd = &cli.Command{
 			if passwd == "" {
 				return fmt.Errorf("must enter your passwd")
 			}
+
+			if err := wallet.RegexpPasswd(passwd); err != nil {
+				return err
+			}
+
 			rest, _ = nodeApi.WalletCustomMethod(ctx, api.WalletCheckPasswd, []interface{}{passwd})
 
 			if !rest.(bool) {

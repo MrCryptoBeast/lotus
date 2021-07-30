@@ -20,7 +20,7 @@ func GenerateKey(typ types.KeyType) (*Key, error) {
 		return nil, err
 	}
 
-	pk1, err := MakeByte(pk, true)
+	pk1, err := MakeByte(pk)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func NewKey(keyinfo types.KeyInfo) (*Key, error) {
 	}
 
 	var err error
-	pk, err := MakeByte(k.PrivateKey, false)
+	pk, err := UnMakeByte(k.PrivateKey)
 	if err != nil {
 		return nil, err
 	}

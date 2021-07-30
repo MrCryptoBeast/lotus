@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/gorilla/mux"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/urfave/cli/v2"
@@ -59,7 +61,7 @@ func main() {
 	app.Setup()
 
 	if err := app.Run(os.Args); err != nil {
-		log.Warnf("%+v", err)
+		fmt.Printf("%s: %+v \n", color.YellowString("WARN"), err)
 		return
 	}
 }

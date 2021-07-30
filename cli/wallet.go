@@ -298,8 +298,13 @@ var walletExport = &cli.Command{
 			// passwd := cctx.String("passwd")
 			passwd = wallet.Prompt("Enter your Password:\n")
 			if passwd == "" {
-				return xerrors.Errorf("must enter your passwd")
+				return fmt.Errorf("must enter your passwd")
 			}
+
+			if err := wallet.RegexpPasswd(passwd); err != nil {
+				return err
+			}
+
 			rest, err := api.WalletCustomMethod(ctx, lapi.WalletExportForEnc, []interface{}{addr, passwd})
 			if err != nil {
 				return err
@@ -539,8 +544,13 @@ var walletDelete = &cli.Command{
 			// passwd := cctx.String("passwd")
 			passwd = wallet.Prompt("Enter your Password:\n")
 			if passwd == "" {
-				return xerrors.Errorf("Must enter your passwd")
+				return fmt.Errorf("must enter your passwd")
 			}
+
+			if err := wallet.RegexpPasswd(passwd); err != nil {
+				return err
+			}
+
 			_, err := api.WalletCustomMethod(ctx, lapi.WalletDeleteForEnc, []interface{}{addr, passwd})
 			if err != nil {
 				return err
@@ -777,7 +787,11 @@ var walletUnlock = &cli.Command{
 		passwd := wallet.Prompt("Enter your Password:\n")
 		// passwd := cctx.String("passwd")
 		if passwd == "" {
-			return xerrors.Errorf("must enter your passwd")
+			return fmt.Errorf("must enter your passwd")
+		}
+
+		if err := wallet.RegexpPasswd(passwd); err != nil {
+			return err
 		}
 
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletUnlock, []interface{}{passwd})
@@ -834,12 +848,16 @@ var walletAddPasswd = &cli.Command{
 
 		passwd := wallet.Prompt("Enter your password:\n")
 		if passwd == "" {
-			return xerrors.Errorf("must enter your passwd")
+			return fmt.Errorf("must enter your passwd")
 		}
+
+		if err := wallet.RegexpPasswd(passwd); err != nil {
+			return err
+		}
+
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletAddPasswd, []interface{}{passwd, getWalletRepo(cctx)})
 		if err != nil {
-			fmt.Println(err.Error())
-			return err
+			return nil
 		}
 		fmt.Println("add wallet password success")
 		return nil
@@ -863,12 +881,20 @@ var walletChangePasswd = &cli.Command{
 		// passwd := cctx.String("passwd")
 		passwd := wallet.Prompt("Enter your old Password:\n")
 		if passwd == "" {
-			return xerrors.Errorf("Must enter your old passwd")
+			return fmt.Errorf("must enter your old passwd")
+		}
+
+		if err := wallet.RegexpPasswd(passwd); err != nil {
+			return fmt.Errorf("old passwd : %w", err)
 		}
 
 		newPasswd := wallet.Prompt("Enter your new Password:\n")
-		if passwd == "" {
-			return xerrors.Errorf("Must enter your new passwd")
+		if newPasswd == "" {
+			return fmt.Errorf("must enter your new passwd")
+		}
+
+		if err := wallet.RegexpPasswd(newPasswd); err != nil {
+			return fmt.Errorf("new passwd : %w", err)
 		}
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletChangePasswd, []interface{}{passwd, newPasswd})
 		if err != nil {
@@ -896,8 +922,13 @@ var walletClearPasswd = &cli.Command{
 		}
 		passwd := wallet.Prompt("Enter your Password:\n")
 		if passwd == "" {
-			return xerrors.Errorf("Must enter your passwd")
+			return fmt.Errorf("must enter your passwd")
 		}
+
+		if err := wallet.RegexpPasswd(passwd); err != nil {
+			return err
+		}
+
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletClearPasswd, []interface{}{passwd})
 		if err != nil {
 			return err

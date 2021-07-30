@@ -153,11 +153,6 @@ var DaemonCmd = &cli.Command{
 			Name:  "restore-config",
 			Usage: "config file to use when restoring from backup",
 		},
-		&cli.BoolFlag{
-			Name:  "setup-passwd",
-			Usage: "create passwd file in ketstore",
-			Value: false,
-		},
 	},
 	Action: func(cctx *cli.Context) error {
 		isLite := cctx.Bool("lite")
@@ -233,14 +228,6 @@ var DaemonCmd = &cli.Command{
 			log.Info("Passwd is not setup")
 		} else {
 			log.Info("Passwd is setup")
-		}
-
-		if cctx.Bool("setup-passwd") && !ok {
-			passwd := wallet.Prompt("Enter your passwd:\n")
-			err := wallet.SetupPasswd([]byte(passwd), passwdPath+"/keystore/passwd")
-			if err != nil {
-				return err
-			}
 		}
 
 		if !isLite {
