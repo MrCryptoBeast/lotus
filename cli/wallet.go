@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -295,7 +296,10 @@ var walletExport = &cli.Command{
 		passwd := ""
 		ki := new(types.KeyInfo)
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
-			// passwd := cctx.String("passwd")
+			if walletCheckLock(ctx,api) {
+				return fmt.Errorf("wallet is locked")
+			}
+
 			passwd = wallet.Prompt("Enter your Password:\n")
 			if passwd == "" {
 				return fmt.Errorf("must enter your passwd")
@@ -540,6 +544,9 @@ var walletDelete = &cli.Command{
 
 		passwd := ""
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
+			if walletCheckLock(ctx, api) {
+				return fmt.Errorf("wallet is locked")
+			}
 			// passwd := cctx.String("passwd")
 			passwd = wallet.Prompt("Enter your Password:\n")
 			if passwd == "" {
@@ -550,7 +557,7 @@ var walletDelete = &cli.Command{
 				return err
 			}
 
-			_, err := api.WalletCustomMethod(ctx, lapi.WalletDeleteForEnc, []interface{}{addr, passwd})
+			_, err = api.WalletCustomMethod(ctx, lapi.WalletDeleteForEnc, []interface{}{addr, passwd})
 			if err != nil {
 				return err
 			}
@@ -764,6 +771,10 @@ var walletLock = &cli.Command{
 			fmt.Println("Passwd is not setup")
 			return nil
 		}
+
+		if walletCheckLock(ctx, api) {
+			return fmt.Errorf("wallet is locked")
+		}
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletLock, []interface{}{})
 		if err != nil {
 			return err
@@ -787,6 +798,10 @@ var walletUnlock = &cli.Command{
 			fmt.Println("Passwd is not setup")
 			return nil
 		}
+		if !walletCheckLock(ctx, api) {
+			return fmt.Errorf("wallet is unlock")
+		}
+
 		passwd := wallet.Prompt("Enter your Password:\n")
 		// passwd := cctx.String("passwd")
 		if passwd == "" {
@@ -897,6 +912,11 @@ var walletChangePasswd = &cli.Command{
 			fmt.Println("Passwd is not setup")
 			return nil
 		}
+
+		if walletCheckLock(ctx, api) {
+			return fmt.Errorf("wallet is locked")
+		}
+
 		// passwd := cctx.String("passwd")
 		passwd := wallet.Prompt("Enter your old Password:\n")
 		if passwd == "" {
@@ -905,6 +925,11 @@ var walletChangePasswd = &cli.Command{
 
 		if err := wallet.RegexpPasswd(passwd); err != nil {
 			return fmt.Errorf("old passwd : %w", err)
+		}
+
+		rest, _ := api.WalletCustomMethod(ctx, lapi.WalletCheckPasswd, []interface{}{passwd})
+		if !rest.(bool) {
+			return fmt.Errorf("check passwd is failed")
 		}
 
 		newPasswd := wallet.Prompt("Enter your new Password:\n")
@@ -939,6 +964,11 @@ var walletClearPasswd = &cli.Command{
 			fmt.Println("Passwd is not setup")
 			return nil
 		}
+
+		if walletCheckLock(ctx, api) {
+			return fmt.Errorf("wallet is locked")
+		}
+
 		passwd := wallet.Prompt("Enter your Password:\n")
 		if passwd == "" {
 			return fmt.Errorf("must enter your passwd")
@@ -964,4 +994,16 @@ func getWalletRepo(cctx *cli.Context) string {
 		return ""
 	}
 	return passwdPath + "/keystore/passwd"
+}
+
+func walletCheckLock(ctx context.Context, api lapi.FullNode) bool {
+	islock, err := api.WalletCustomMethod(ctx, lapi.WalletIsLock, []interface{}{})
+	if err != nil {
+		fmt.Println("wallet check lock err:", err)
+		return false
+	}
+	if islock.(bool) {
+		return true
+	}
+	return false
 }
