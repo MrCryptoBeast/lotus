@@ -296,7 +296,7 @@ var walletExport = &cli.Command{
 		passwd := ""
 		ki := new(types.KeyInfo)
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
-			if walletCheckLock(ctx,api) {
+			if walletCheckLock(ctx, api) {
 				return fmt.Errorf("wallet is locked")
 			}
 
@@ -372,6 +372,9 @@ var walletImport = &cli.Command{
 			inpdata = fdata
 		}
 
+		if walletCheckLock(ctx, api) {
+			return fmt.Errorf("wallet is locked")
+		}
 		var ki types.KeyInfo
 		switch cctx.String("format") {
 		case "hex-lotus":
