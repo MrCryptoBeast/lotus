@@ -233,7 +233,7 @@ func IsSetup() bool {
 	return passwdPath != ""
 }
 
-//IsSetup check setup lock for wallet
+//IsLock check setup lock for wallet
 func IsLock() bool {
 	return WalletPasswd == ""
 }

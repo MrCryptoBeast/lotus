@@ -2,6 +2,8 @@ package wallet
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -449,7 +451,9 @@ func (w *LocalWallet) WalletUnlock(ctx context.Context, passwd string) error {
 			if err != nil {
 				return err
 			}
-			WalletPasswd = passwd
+			m5 := md5.Sum(completionPwd([]byte(passwd)))
+			m5passwd := hex.EncodeToString(m5[:])
+			WalletPasswd = m5passwd
 			return nil
 		} else {
 			return fmt.Errorf("wallet is unlocked")
@@ -590,15 +594,14 @@ func (w *LocalWallet) WalletChangePasswd(ctx context.Context, oldPasswd, newPass
 
 func (w *LocalWallet) WalletClearPasswd(ctx context.Context, passwd string) (bool, error) {
 	if !IsSetup() {
-		return false, fmt.Errorf("Passwd is not setup")
+		return false, fmt.Errorf("passwd is not setup")
 	}
 
+	if IsLock() {
+		return false, fmt.Errorf("wallet is locked")
+	}
 	if err := CheckPasswd([]byte(passwd)); err != nil {
 		return false, err
-	}
-
-	if WalletPasswd == "" {
-		return false, fmt.Errorf("Wallet is locked")
 	}
 
 	addr_list, err := w.WalletList(ctx)

@@ -161,7 +161,7 @@ replace github.com/golangci/golangci-lint => github.com/golangci/golangci-lint v
 
 replace github.com/filecoin-project/filecoin-ffi => ../filecoin-ffi
 
-replace github.com/filecoin-project/test-vectors => ../test-vectors
+replace github.com/filecoin-project/test-vectors/schema => ../test-vectors/schema
 
 replace github.com/filecoin-project/go-fil-markets => ../go-fil-markets
 
