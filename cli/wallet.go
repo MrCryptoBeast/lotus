@@ -322,7 +322,6 @@ var walletExport = &cli.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("WalletExportForEnc %+v \n", ki)
 		fmt.Println(hex.EncodeToString(b))
 		return nil
 	},
@@ -859,17 +858,20 @@ var walletAddPasswd = &cli.Command{
 			return fmt.Errorf("must enter your passwd")
 		}
 
+		if err := wallet.RegexpPasswd(passwd); err != nil {
+			return err
+		}
+
 		passwd_ag := wallet.Prompt("Enter your password again:\n")
 		if passwd_ag == "" {
 			return fmt.Errorf("must enter your passwd")
 		}
 
+		if err := wallet.RegexpPasswd(passwd_ag); err != nil {
+			return err
+		}
 		if passwd != passwd_ag {
 			return fmt.Errorf("the two passwords do not match")
-		}
-
-		if err := wallet.RegexpPasswd(passwd); err != nil {
-			return err
 		}
 
 		_, err = api.WalletCustomMethod(ctx, lapi.WalletAddPasswd, []interface{}{passwd, getWalletRepo(cctx)})
