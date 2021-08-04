@@ -220,12 +220,12 @@ func DefaultStorageMiner() *StorageMiner {
 		},
 
 		Fees: MinerFeeConfig{
-			MaxPreCommitGasFee:     types.MustParseFIL("0.025"),
-			MaxCommitGasFee:        types.MustParseFIL("0.05"),
+			MaxPreCommitGasFee:     types.MustParseFIL("0.1"),
+			MaxCommitGasFee:        types.MustParseFIL("0.2"),
 			MaxTerminateGasFee:     types.MustParseFIL("0.5"),
 			MaxWindowPoStGasFee:    types.MustParseFIL("5"),
-			MaxPublishDealsFee:     types.MustParseFIL("0.05"),
-			MaxMarketBalanceAddFee: types.MustParseFIL("0.007"),
+			MaxPublishDealsFee:     types.MustParseFIL("0.2"),
+			MaxMarketBalanceAddFee: types.MustParseFIL("0.03"),
 		},
 
 		Addresses: MinerAddressConfig{
