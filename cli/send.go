@@ -149,7 +149,6 @@ var sendCmd = &cli.Command{
 			Params:     params,
 		}
 
-		passwd := ""
 		if wallet.GetSetupStateForLocal(getWalletRepo(cctx)) {
 			rest, err := nodeApi.WalletCustomMethod(ctx, api.WalletIsLock, []interface{}{})
 			if err != nil {
@@ -160,20 +159,6 @@ var sendCmd = &cli.Command{
 				return fmt.Errorf("wallet is lock, dont send msg, please unlock wallet ! ")
 			}
 
-			passwd = wallet.Prompt("Enter your Password:\n")
-			if passwd == "" {
-				return fmt.Errorf("must enter your passwd")
-			}
-
-			if err := wallet.RegexpPasswd(passwd); err != nil {
-				return err
-			}
-
-			rest, _ = nodeApi.WalletCustomMethod(ctx, api.WalletCheckPasswd, []interface{}{passwd})
-
-			if !rest.(bool) {
-				return fmt.Errorf("your passwd err")
-			}
 		}
 
 		if !cctx.Bool("force") {
