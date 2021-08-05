@@ -23,6 +23,7 @@ const UpgradeTapeHeight = -4
 const UpgradeHogwartsHeight = -5
 const UpgradeSiriusHeight = -6
 
+var UpgradeStableHeight = abi.ChainEpoch(807_000)
 var UpgradeActorsV2Height = abi.ChainEpoch(10_000_001)
 
 const UpgradeLiftoffHeight = 10_000_003

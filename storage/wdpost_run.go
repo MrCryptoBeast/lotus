@@ -162,6 +162,8 @@ func (s *WindowPoStScheduler) runSubmitPoST(
 		log.Errorw("failed to get network version to determine PoSt epoch randomness lookback", "error", err)
 	} else if ver >= network.Version5 {
 		commEpoch = deadline.Challenge
+	} else if ts.Height() >= build.UpgradeStableHeight {
+		commEpoch = deadline.Challenge
 	}
 
 	commRand, err := s.api.ChainGetRandomnessFromTickets(ctx, ts.Key(), crypto.DomainSeparationTag_PoStChainCommit, commEpoch, nil)
