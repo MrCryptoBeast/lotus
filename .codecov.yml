@@ -15,5 +15,6 @@ ignore:
   - "cmd/lotus-townhall/*"
   - "cmd/lotus-stats/*"
   - "cmd/lotus-pcr/*"
+  - "^chain/actors/builtin/[^/]*/(message|state|v)[0-4]\.go$" # Auto generated and old.
 github_checks:
   annotations: false
