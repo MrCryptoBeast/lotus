@@ -1,5 +1,11 @@
 - github.com/filecoin-project/lotus:
-  - Merge branch 'releases' into release/v1.11.1
+  - Master->v1.11.1 ([filecoin-project/lotus#7051](https://github.com/filecoin-project/lotus/pull/7051))
+  - v1.11.1-rc2 ([filecoin-project/lotus#6966](https://github.com/filecoin-project/lotus/pull/6966))
+  - Backport master -> v1.11.1 ([filecoin-project/lotus#6965](https://github.com/filecoin-project/lotus/pull/6965))
+  - Fixes in master -> release ([filecoin-project/lotus#6933](https://github.com/filecoin-project/lotus/pull/6933))
+  - Eliminate inefficiency in markets logging ([filecoin-project/lotus#6895](https://github.com/filecoin-project/lotus/pull/6895))
+  - Add changelog  for v1.11.1-rc1 and bump the version ([filecoin-project/lotus#6900](https://github.com/filecoin-project/lotus/pull/6900))
+  - Fix  merge release -> v1.11.1 ([filecoin-project/lotus#6897](https://github.com/filecoin-project/lotus/pull/6897))
   - Update to proof v8.0.3 ([filecoin-project/lotus#6890](https://github.com/filecoin-project/lotus/pull/6890))
   - lotus-shed: initial export cmd for markets related metadata ([filecoin-project/lotus#6840](https://github.com/filecoin-project/lotus/pull/6840))
   - add a very verbose -vv flag to lotus and lotus-miner. ([filecoin-project/lotus#6888](https://github.com/filecoin-project/lotus/pull/6888))
@@ -89,8 +95,10 @@
   - shed tool to estimate aggregate network fees ([filecoin-project/lotus#6631](https://github.com/filecoin-project/lotus/pull/6631))
   - fix prove commit aggregate send token amount ([filecoin-project/lotus#6625](https://github.com/filecoin-project/lotus/pull/6625))
   - Update version.go to 1.11.1 ([filecoin-project/lotus#6621](https://github.com/filecoin-project/lotus/pull/6621))
-- github.com/filecoin-project/go-data-transfer (v1.6.0 -> v1.7.0):
-  - release: v1.7.0
+- github.com/filecoin-project/go-data-transfer (v1.6.0 -> v1.7.2):
+  - More data transfer logging (#226) ([filecoin-project/go-data-transfer#226](https://github.com/filecoin-project/go-data-transfer/pull/226))
+  - feat(graphsync): improve logging (#225) ([filecoin-project/go-data-transfer#225](https://github.com/filecoin-project/go-data-transfer/pull/225))
+  - release: v1.7.0 ([filecoin-project/go-data-transfer#222](https://github.com/filecoin-project/go-data-transfer/pull/222))
   - Fire a transfer queued event when a transfer is queued in Graphsync (#221) ([filecoin-project/go-data-transfer#221](https://github.com/filecoin-project/go-data-transfer/pull/221))
   - feat: pass ChannelID to ValidatePush & ValidatePull (#220) ([filecoin-project/go-data-transfer#220](https://github.com/filecoin-project/go-data-transfer/pull/220))
   - release: v1.6.1 ([filecoin-project/go-data-transfer#218](https://github.com/filecoin-project/go-data-transfer/pull/218))
@@ -101,8 +109,10 @@
   - fix: map race in GS transport (#208) ([filecoin-project/go-data-transfer#208](https://github.com/filecoin-project/go-data-transfer/pull/208))
   - refactor: simplify graphsync transport (#203) ([filecoin-project/go-data-transfer#203](https://github.com/filecoin-project/go-data-transfer/pull/203))
   - release: v1.5.0 (#200) ([filecoin-project/go-data-transfer#200](https://github.com/filecoin-project/go-data-transfer/pull/200))
-- github.com/filecoin-project/go-fil-markets (v1.5.0 -> v1.6.0):
-  - release: v1.6.0
+- github.com/filecoin-project/go-fil-markets (v1.5.0 -> v1.6.2):
+  - Logs Provider Data transfer event handling (#595) ([filecoin-project/go-fil-markets#595](https://github.com/filecoin-project/go-fil-markets/pull/595))
+  - feat(logging): add various logging events (#594) ([filecoin-project/go-fil-markets#594](https://github.com/filecoin-project/go-fil-markets/pull/594))
+  - Release: v1.6.0 ([filecoin-project/go-fil-markets#593](https://github.com/filecoin-project/go-fil-markets/pull/593))
   - support padding out smaller files (#536) ([filecoin-project/go-fil-markets#536](https://github.com/filecoin-project/go-fil-markets/pull/536))
   - On overloaded CI 10 seconds just isn't enough (#587) ([filecoin-project/go-fil-markets#587](https://github.com/filecoin-project/go-fil-markets/pull/587))
   - Do not hex-encode CIDs in logs (#561) ([filecoin-project/go-fil-markets#561](https://github.com/filecoin-project/go-fil-markets/pull/561))
@@ -114,10 +124,17 @@
 - github.com/filecoin-project/go-padreader (v0.0.0-20200903213702-ed5fae088b20 -> v0.0.0-20210723183308-812a16dc01b1):
   - New method to pad harder (#6) ([filecoin-project/go-padreader#6](https://github.com/filecoin-project/go-padreader/pull/6))
   - Create SECURITY.md (#5) ([filecoin-project/go-padreader#5](https://github.com/filecoin-project/go-padreader/pull/5))
-- github.com/filecoin-project/go-state-types (v0.1.1-0.20210506134452-99b279731c48 -> v0.1.1-0.20210722133031-ad9bfe54c124):
+- github.com/filecoin-project/go-state-types (v0.1.1-0.20210506134452-99b279731c48 -> v0.1.1-0.20210810190654-139e0e79e69e):
+  - Revert change (#31) ([filecoin-project/go-state-types#31](https://github.com/filecoin-project/go-state-types/pull/31))
   - Add version 6.5 (#30) ([filecoin-project/go-state-types#30](https://github.com/filecoin-project/go-state-types/pull/30))
   - rename file
-- github.com/filecoin-project/specs-actors/v5 (v5.0.1 -> v5.0.3):
+- github.com/filecoin-project/go-statemachine (v0.0.0-20200925024713-05bd7c71fbfe -> v1.0.1):
+  - Log sm event loop ([filecoin-project/go-statemachine#28](https://github.com/filecoin-project/go-statemachine/pull/28))
+  - update logging to print the state type name (#24) ([filecoin-project/go-statemachine#24](https://github.com/filecoin-project/go-statemachine/pull/24))
+  - chore(fsm): add logging of event processing timing (#25) ([filecoin-project/go-statemachine#25](https://github.com/filecoin-project/go-statemachine/pull/25))
+  - feat(fsm): switch to interface storedstate (#20) ([filecoin-project/go-statemachine#20](https://github.com/filecoin-project/go-statemachine/pull/20))
+- github.com/filecoin-project/specs-actors/v5 (v5.0.1 -> v5.0.4):
+  - go state types version revert (#1467) ([filecoin-project/specs-actors#1467](https://github.com/filecoin-project/specs-actors/pull/1467))
   - Adjust code for subtle change in go-multihash 0.0.15 (#1463) ([filecoin-project/specs-actors#1463](https://github.com/filecoin-project/specs-actors/pull/1463))
   - Bump go state types (#1464) ([filecoin-project/specs-actors#1464](https://github.com/filecoin-project/specs-actors/pull/1464))
   - Create CODEOWNERS (#1465) ([filecoin-project/specs-actors#1465](https://github.com/filecoin-project/specs-actors/pull/1465))
@@ -127,34 +144,35 @@ Contributors
 
 | Contributor | Commits | Lines ± | Files Changed |
 |-------------|---------|---------|---------------|
-| vyzo | 295 | +8700/-5936 | 397 |
-| Anton Evangelatov | 94 | +4680/-2965 | 277 |
+| vyzo | 313 | +8928/-6010 | 415 |
+| Anton Evangelatov | 103 | +6041/-4041 | 304 |
 | Łukasz Magiera | 37 | +3851/-1611 | 146 |
+| ZenGround0 | 24 | +1693/-1394 | 95 |
 | Mike Greenberg | 1 | +2310/-578 | 8 |
 | dirkmc | 7 | +1154/-726 | 29 |
-| Jennifer Wang | 9 | +485/-341 | 26 |
+| Raúl Kripalani | 44 | +969/-616 | 141 |
+| Jennifer Wang | 15 | +682/-354 | 47 |
 | Peter Rabbitson | 18 | +469/-273 | 64 |
 | Cory Schwartz | 5 | +576/-135 | 14 |
 | hunjixin | 7 | +404/-82 | 19 |
-| ZenGround0 | 17 | +284/-135 | 44 |
 | Dirk McCormick | 17 | +348/-47 | 17 |
-| Raúl Kripalani | 18 | +254/-97 | 62 |
-| tchardin | 1 | +261/-33 | 4 |
+| tchardin | 2 | +262/-34 | 5 |
+| Aarsh Shah | 9 | +233/-63 | 44 |
 | Jakub Sztandera | 4 | +254/-16 | 4 |
-| Aarsh Shah | 2 | +196/-40 | 28 |
-| whyrusleeping | 3 | +150/-9 | 8 |
+| hannahhoward | 6 | +163/-75 | 8 |
+| whyrusleeping | 4 | +157/-16 | 9 |
 | Whyrusleeping | 2 | +87/-66 | 10 |
 | Aayush Rajasekaran | 10 | +81/-53 | 13 |
 | zgfzgf | 2 | +104/-4 | 2 |
-| aarshkshah1992 | 4 | +73/-7 | 6 |
+| aarshkshah1992 | 6 | +85/-19 | 10 |
 | llifezou | 4 | +59/-20 | 4 |
 | Steven Allen | 7 | +47/-17 | 9 |
 | johnli-helloworld | 3 | +46/-15 | 5 |
 | frrist | 1 | +28/-23 | 2 |
+| Hannah Howard | 4 | +46/-5 | 11 |
 | Jennifer | 4 | +31/-2 | 4 |
 | wangchao | 1 | +1/-27 | 1 |
 | Jiaying Wang | 2 | +7/-21 | 2 |
-| hannahhoward | 3 | +21/-2 | 3 |
 | chadwick2143 | 1 | +15/-1 | 1 |
 | Jerry | 2 | +9/-4 | 2 |
 | Steve Loeppky | 2 | +12/-0 | 2 |
