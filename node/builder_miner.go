@@ -133,7 +133,6 @@ func ConfigStorageMiner(c interface{}) Option {
 		If(cfg.Subsystems.EnableMarkets,
 			// Markets
 			Override(new(dtypes.StagingBlockstore), modules.StagingBlockstore),
-			Override(new(dtypes.StagingDAG), modules.StagingDAG),
 			Override(new(dtypes.StagingGraphsync), modules.StagingGraphsync(cfg.Dealmaking.SimultaneousTransfers)),
 			Override(new(dtypes.ProviderPieceStore), modules.NewProviderPieceStore),
 			Override(new(*sectorblocks.SectorBlocks), sectorblocks.NewSectorBlocks),
