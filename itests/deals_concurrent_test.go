@@ -28,6 +28,8 @@ func TestDealWithMarketAndMinerNode(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
+	t.Skip("skipping due to flakiness: see #6956")
+
 	kit.QuietMiningLogs()
 
 	oldDelay := policy.GetPreCommitChallengeDelay()

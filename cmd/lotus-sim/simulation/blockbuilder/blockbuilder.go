@@ -83,7 +83,7 @@ func NewBlockBuilder(ctx context.Context, logger *zap.SugaredLogger, sm *stmgr.S
 		Epoch:          parentTs.Height() + 1,
 		Rand:           r,
 		Bstore:         sm.ChainStore().StateBlockstore(),
-		Syscalls:       sm.ChainStore().VMSys(),
+		Syscalls:       sm.VMSys(),
 		CircSupplyCalc: sm.GetVMCirculatingSupply,
 		NtwkVersion:    sm.GetNtwkVersion,
 		BaseFee:        abi.NewTokenAmount(0),
@@ -271,7 +271,7 @@ func (bb *BlockBuilder) StateManager() *stmgr.StateManager {
 }
 
 // ActorsVersion returns the actors version for the target block.
-func (bb *BlockBuilder) ActorsVersion() actors.Version {
+func (bb *BlockBuilder) ActorsVersion() (actors.Version, error) {
 	return actors.VersionForNetwork(bb.NetworkVersion())
 }
 

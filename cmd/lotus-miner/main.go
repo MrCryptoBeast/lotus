@@ -81,6 +81,20 @@ func main() {
 		}
 	}
 
+	// adapt the Net* commands to always hit the node running the markets
+	// subsystem, as that is the only one that runs a libp2p node.
+	netCmd := *lcli.NetCmd // make a copy.
+	prev := netCmd.Before
+	netCmd.Before = func(c *cli.Context) error {
+		if prev != nil {
+			if err := prev(c); err != nil {
+				return err
+			}
+		}
+		c.App.Metadata["repoType"] = repo.Markets
+		return nil
+	}
+
 	app := &cli.App{
 		Name:                 "lotus-miner",
 		Usage:                "Filecoin decentralized storage network miner",
@@ -123,7 +137,7 @@ func main() {
 			},
 			cliutil.FlagVeryVerbose,
 		},
-		Commands: append(local, lcli.CommonCommands...),
+		Commands: append(local, append(lcli.CommonCommands, &netCmd)...),
 		Before: func(c *cli.Context) error {
 			// this command is explicitly called on markets, inform
 			// common commands by overriding the repoType.
