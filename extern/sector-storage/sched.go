@@ -570,12 +570,6 @@ func (sh *scheduler) trySched() {
 				wii := sh.openWindows[acceptableWindows[sqi][i]].worker // nolint:scopelint
 				wji := sh.openWindows[acceptableWindows[sqi][j]].worker // nolint:scopelint
 
-				fmt.Println(acceptableWindows[sqi])
-				fmt.Printf("acceptableWindows[sqi][i]: %d\n", acceptableWindows[sqi][i])
-				fmt.Printf("acceptableWindows[sqi][j]: %d\n", acceptableWindows[sqi][j])
-				fmt.Printf("wii: %s\n", wii.String())
-				fmt.Printf("wji: %s\n", wji.String())
-
 				if wii == wji {
 					// for the same worker prefer older windows
 					return acceptableWindows[sqi][i] < acceptableWindows[sqi][j] // nolint:scopelint
