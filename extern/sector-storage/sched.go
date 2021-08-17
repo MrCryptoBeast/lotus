@@ -88,12 +88,11 @@ type sectorGroup struct {
 }
 
 type groupList struct {
-	lk sync.RWMutex
+	lk   sync.RWMutex
 	list map[string][]WorkerID
 }
 
 type workerHandle struct {
-
 	isDeleteGroup bool
 
 	workerRpc Worker
@@ -160,10 +159,10 @@ type workerRequest struct {
 	indexHeap int
 	ret       chan<- workerResponse
 	ctx       context.Context
-	
+
 	// fic remotec2
 	isRemoteC2 bool
-	group string
+	group      string
 }
 
 type workerResponse struct {
@@ -538,7 +537,7 @@ func (sh *scheduler) trySched() {
 					workerGroup := worker.workerRpc.GetWorkerGroup(task.ctx)
 					if exist && sectorGroup != "all" && workerGroup != "all" {
 						if workerGroup != sectorGroup {
-							log.Infof("sectorGroup does not match workerGroup, sectorid: %v, sectorGroup: %s, workerGroup: %s, taskType: %s \n", task.sector, sectorGroup, workerGroup, task.taskType)
+							log.Debugf("sectorGroup does not match workerGroup, sectorid: %v, sectorGroup: %s, workerGroup: %s, taskType: %s \n", task.sector, sectorGroup, workerGroup, task.taskType)
 							continue
 						}
 					}
