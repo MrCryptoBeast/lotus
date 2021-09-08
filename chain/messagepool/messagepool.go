@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/minio/blake2b-simd"
+
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/crypto"
@@ -755,7 +757,9 @@ func sigCacheKey(m *types.SignedMessage) (string, error) {
 			return "", fmt.Errorf("bls signature too short")
 		}
 
-		return string(m.Cid().Bytes()) + string(m.Signature.Data[64:]), nil
+		hashCache := blake2b.Sum256(append(m.Cid().Bytes(), m.Signature.Data...))
+
+		return string(hashCache[:]), nil
 	case crypto.SigTypeSecp256k1:
 		return string(m.Cid().Bytes()), nil
 	default:
