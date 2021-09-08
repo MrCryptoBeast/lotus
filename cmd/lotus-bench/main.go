@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,9 +12,11 @@ import (
 	"path/filepath"
 	"time"
 
+	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	saproof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
 
 	"github.com/docker/go-units"
+	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/minio/blake2b-simd"
 	"github.com/mitchellh/go-homedir"
@@ -28,7 +31,6 @@ import (
 	"github.com/filecoin-project/lotus/extern/sector-storage/ffiwrapper/basicfs"
 	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
 	"github.com/filecoin-project/specs-storage/storage"
-	cid "github.com/ipfs/go-cid"
 
 	lapi "github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
@@ -90,29 +92,21 @@ type SealingResult struct {
 	Unseal     time.Duration
 }
 
+// custom bench
 type PreCommit1In struct {
-	Miner    uint64
-	Number   uint64
 	Size     uint64
 	PieceCID string
 }
-
 type PreCommit2In struct {
-	Miner  uint64
-	Number uint64
 	Size   uint64
 	Data   []byte
 	Ticket []byte
 }
-
 type Commit1In struct {
-	Miner    uint64
-	Number   uint64
 	Size     uint64
 	Unsealed string
 	Sealed   string
 }
-
 type Commit2In struct {
 	SectorNum  int64
 	Phase1Out  []byte
@@ -122,18 +116,20 @@ type Commit2In struct {
 func main() {
 	logging.SetLogLevel("*", "INFO")
 
-	log.Info("Starting lotus-bench")
-
 	app := &cli.App{
 		Name:    "lotus-bench",
 		Usage:   "Benchmark performance of lotus on your hardware",
 		Version: build.UserVersion(),
 		Commands: []*cli.Command{
+			// custom bench
 			addPieceCmd,
 			preCommit1Cmd,
 			preCommit2Cmd,
 			commit1Cmd,
-			proveCmd,
+			commit2Cmd,
+			// recovery
+			recoveryCmd,
+
 			sealBenchCmd,
 			importBenchCmd,
 		},
@@ -145,8 +141,9 @@ func main() {
 	}
 }
 
+// custom bench
 var addPieceCmd = &cli.Command{
-	Name: "addPiece",
+	Name: "addpiece",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "storage-dir",
@@ -159,9 +156,14 @@ var addPieceCmd = &cli.Command{
 			Usage: "size of the sectors in bytes, i.e. 32GiB",
 		},
 		&cli.StringFlag{
-			Name:  "miner-addr",
-			Usage: "pass miner address (only necessary if using existing sectorbuilder)",
+			Name:  "miner-id",
 			Value: "t01000",
+			Usage: "miner address",
+		},
+		&cli.StringFlag{
+			Name:  "sector-id",
+			Value: "10",
+			Usage: "sector number",
 		},
 	},
 	Action: func(c *cli.Context) error {
@@ -183,54 +185,62 @@ var addPieceCmd = &cli.Command{
 		}
 		sectorSize := abi.SectorSize(sectorSizeInt)
 
-		// miner address
-		maddr, err := address.NewFromString(c.String("miner-addr"))
+		// sector id
+		sectoridInt, err := units.RAMInBytes(c.String("sector-id"))
 		if err != nil {
 			return err
 		}
+		sectorid := abi.SectorNumber(sectoridInt)
 
+		// miner address
+		//maddr, err := address.NewFromString("t01000")
+		maddr, err := address.NewFromString(c.String("miner-id"))
+		if err != nil {
+			return err
+		}
 		amid, err := address.IDFromAddress(maddr)
 		if err != nil {
 			return err
 		}
 		mid := abi.ActorID(amid)
 
+		var sectorfullname = "s-" + c.String("miner-id") + "-" + c.String("sector-id")
+
+		// config proofs
 		sbfs := &basicfs.Provider{
 			Root: sdir,
 		}
-
 		sb, err := ffiwrapper.New(sbfs)
 		if err != nil {
 			return err
 		}
 
+		var sealTimings SealingResult
+		start := time.Now()
+
 		// start AddPiece
 		sid := storage.SectorRef{
 			ID: abi.SectorID{
 				Miner:  mid,
-				Number: abi.SectorNumber(1),
+				Number: sectorid, //abi.SectorNumber(10),
 			},
 			ProofType: spt(sectorSize),
 		}
 
 		log.Infof("[%d] Writing piece into sector...", 1)
+		log.Infof("addPieceCmd sid=%v", sid)
 
-		r := rand.New(rand.NewSource(100 + int64(1)))
-
-		pi, err := sb.AddPiece(context.TODO(), sid, nil, abi.PaddedPieceSize(sectorSize).Unpadded(), r, "")
+		pi, err := sb.AddPiece(context.TODO(), sid, nil, abi.PaddedPieceSize(sectorSize).Unpadded(), sealing.NewNullReader(abi.PaddedPieceSize(sectorSize).Unpadded()), "")
 		if err != nil {
 			return err
 		}
 
+		addpiece := time.Now()
+
 		p1in := PreCommit1In{
-			Miner:    uint64(sid.ID.Miner),
-			Number:   uint64(sid.ID.Number),
 			Size:     uint64(pi.Size),
 			PieceCID: pi.PieceCID.String(),
 		}
-
-		fmt.Println(sid)
-		fmt.Println(pi)
 
 		b, err := json.Marshal(&p1in)
 		if err != nil {
@@ -238,28 +248,83 @@ var addPieceCmd = &cli.Command{
 		}
 
 		if err := ioutil.WriteFile("p1in.json", b, 0664); err != nil {
-			log.Warnf("%+v", err)
+			return err
 		}
+
+		sealTimings.AddPiece = addpiece.Sub(start)
+		fmt.Printf("----\nresults (v28) (%d)\n", sectorSize)
+		fmt.Printf("seal: addPiece: %s (%s)\n", sealTimings.AddPiece, bps(abi.SectorSize(sectorSize), 1, sealTimings.AddPiece))
+
+		fmt.Printf("---- \n")
+		fmt.Printf("%v \n", sectorfullname)
+		fmt.Printf("sid=%v \n", sid)
+		fmt.Printf("p1in=%v \n", p1in)
 
 		return nil
 	},
 }
-
 var preCommit1Cmd = &cli.Command{
-	Name: "preCommit1",
+	Name: "precommit1",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "storage-dir",
 			Value: "~/.lotus-bench",
 			Usage: "Path to the storage directory that will store sectors long term",
 		},
+		&cli.StringFlag{
+			Name:  "miner-id",
+			Value: "t01000",
+			Usage: "miner address",
+		},
+		&cli.StringFlag{
+			Name:  "sector-id",
+			Value: "10",
+			Usage: "sector number",
+		},
+		&cli.StringFlag{
+			Name:  "ticket",
+			Value: "",
+			Usage: "ticket",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		// storage-dir
-		tsdir, err := homedir.Expand(c.String("storage-dir"))
+		sdir, err := homedir.Expand(c.String("storage-dir"))
 		if err != nil {
 			return err
 		}
+
+		// miner address
+		//maddr, err := address.NewFromString("t01000")
+		maddr, err := address.NewFromString(c.String("miner-id"))
+		if err != nil {
+			return err
+		}
+		amid, err := address.IDFromAddress(maddr)
+		if err != nil {
+			return err
+		}
+		mid := abi.ActorID(amid)
+
+		// sector id
+		sectoridInt, err := units.RAMInBytes(c.String("sector-id"))
+		if err != nil {
+			return err
+		}
+		sectorid := abi.SectorNumber(sectoridInt)
+
+		// ticket
+		var ticketStr = c.String("ticket")
+		if len(ticketStr) != 64 {
+			return xerrors.Errorf("ticket len is fault.")
+		}
+		ticketHex, err := hex.DecodeString(ticketStr)
+		if err != nil {
+			return err
+		}
+		ticket := abi.SealRandomness(ticketHex[:])
+
+		var sectorfullname = "s-" + c.String("miner-id") + "-" + c.String("sector-id")
 
 		// read p1in
 		inb, err := ioutil.ReadFile("p1in.json")
@@ -274,12 +339,11 @@ var preCommit1Cmd = &cli.Command{
 
 		sid := storage.SectorRef{
 			ID: abi.SectorID{
-				Miner:  abi.ActorID(p1in.Miner),
-				Number: abi.SectorNumber(p1in.Number),
+				Miner:  mid,      //abi.ActorID(1000),
+				Number: sectorid, //abi.SectorNumber(10),
 			},
 			ProofType: spt(abi.SectorSize(p1in.Size)),
 		}
-
 
 		_cid, err := cid.Decode(p1in.PieceCID)
 		if err != nil {
@@ -291,31 +355,34 @@ var preCommit1Cmd = &cli.Command{
 			PieceCID: _cid,
 		}
 
+		// config proofs
 		sbfs := &basicfs.Provider{
-			Root: tsdir,
+			Root: sdir,
 		}
-
 		sb, err := ffiwrapper.New(sbfs)
 		if err != nil {
 			return err
 		}
 
-		// start PreCommit1
-		trand := blake2b.Sum256([]byte(""))
-		ticket := abi.SealRandomness(trand[:])
+		var sealTimings SealingResult
+		pc1Start := time.Now()
 
+		// start PreCommit1
 		log.Infof("[%d] Running replication(1)...", 1)
 		pieces := []abi.PieceInfo{pi}
+
+		log.Infof("preCommit1Cmd sid=%v", sid)
+		log.Infof("preCommit1Cmd ticket=%v ticket-hex=%v", ticketStr, ticket)
+		log.Infof("preCommit1Cmd pieces=%v", pieces)
+
 		pc1o, err := sb.SealPreCommit1(context.TODO(), sid, ticket, pieces)
 		if err != nil {
 			return xerrors.Errorf("commit: %w", err)
 		}
 
-		fmt.Println(pc1o)
+		precommit1 := time.Now()
 
 		p2in := PreCommit2In{
-			Miner:  uint64(sid.ID.Miner),
-			Number: uint64(sid.ID.Number),
 			Data:   pc1o,
 			Size:   p1in.Size,
 			Ticket: ticket,
@@ -327,28 +394,67 @@ var preCommit1Cmd = &cli.Command{
 		}
 
 		if err := ioutil.WriteFile("p2in.json", b, 0664); err != nil {
-			log.Warnf("%+v", err)
+			return err
 		}
+
+		sealTimings.PreCommit1 = precommit1.Sub(pc1Start)
+		fmt.Printf("----\nresults (v28) (%d)\n", p1in.Size)
+		fmt.Printf("seal: preCommit phase 1: %s (%s)\n", sealTimings.PreCommit1, bps(abi.SectorSize(p1in.Size), 1, sealTimings.PreCommit1))
+
+		fmt.Printf("---- \n")
+		fmt.Printf("%v \n", sectorfullname)
+		fmt.Printf("pieces=%v \n", pieces)
+		fmt.Printf("ticket=%v \n", ticketStr)
 
 		return nil
 	},
 }
-
 var preCommit2Cmd = &cli.Command{
-	Name: "preCommit2",
+	Name: "precommit2",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "storage-dir",
 			Value: "~/.lotus-bench",
 			Usage: "Path to the storage directory that will store sectors long term",
 		},
+		&cli.StringFlag{
+			Name:  "miner-id",
+			Value: "t01000",
+			Usage: "miner address",
+		},
+		&cli.StringFlag{
+			Name:  "sector-id",
+			Value: "10",
+			Usage: "sector number",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		// storage-dir
-		tsdir, err := homedir.Expand(c.String("storage-dir"))
+		sdir, err := homedir.Expand(c.String("storage-dir"))
 		if err != nil {
 			return err
 		}
+
+		// sector id
+		sectoridInt, err := units.RAMInBytes(c.String("sector-id"))
+		if err != nil {
+			return err
+		}
+		sectorid := abi.SectorNumber(sectoridInt)
+
+		// miner address
+		//maddr, err := address.NewFromString("t01000")
+		maddr, err := address.NewFromString(c.String("miner-id"))
+		if err != nil {
+			return err
+		}
+		amid, err := address.IDFromAddress(maddr)
+		if err != nil {
+			return err
+		}
+		mid := abi.ActorID(amid)
+
+		var sectorfullname = "s-" + c.String("miner-id") + "-" + c.String("sector-id")
 
 		// read p2in
 		inb, err := ioutil.ReadFile("p2in.json")
@@ -363,53 +469,64 @@ var preCommit2Cmd = &cli.Command{
 
 		sid := storage.SectorRef{
 			ID: abi.SectorID{
-				Miner:  abi.ActorID(p2in.Miner),
-				Number: abi.SectorNumber(p2in.Number),
+				Miner:  mid,      //abi.ActorID(1000),
+				Number: sectorid, //abi.SectorNumber(10),
 			},
 			ProofType: spt(abi.SectorSize(p2in.Size)),
 		}
 
 		pc1o := p2in.Data
 
+		// config proofs
 		sbfs := &basicfs.Provider{
-			Root: tsdir,
+			Root: sdir,
 		}
-
 		sb, err := ffiwrapper.New(sbfs)
 		if err != nil {
 			return err
 		}
 
+		var sealTimings SealingResult
+		pc2Start := time.Now()
+
 		// start SealPreCommit2
 		log.Infof("[%d] Running replication(2)...", 1)
+
+		log.Infof("preCommit2Cmd sid=%v pc1o=%v", sid, pc1o)
+
 		cids, err := sb.SealPreCommit2(context.TODO(), sid, pc1o)
 		if err != nil {
 			return xerrors.Errorf("commit: %w", err)
 		}
 
-		fmt.Println(cids)
+		precommit2 := time.Now()
 
-		c2in := Commit1In{
-			Miner:    uint64(sid.ID.Miner),
-			Number:   uint64(sid.ID.Number),
+		c1in := Commit1In{
 			Size:     p2in.Size,
 			Unsealed: cids.Unsealed.String(),
 			Sealed:   cids.Sealed.String(),
 		}
 
-		b, err := json.Marshal(&c2in)
+		b, err := json.Marshal(&c1in)
 		if err != nil {
 			return err
 		}
 
 		if err := ioutil.WriteFile("c1in.json", b, 0664); err != nil {
-			log.Warnf("%+v", err)
+			return err
 		}
+
+		sealTimings.PreCommit2 = precommit2.Sub(pc2Start)
+		fmt.Printf("----\nresults (v28) (%d)\n", p2in.Size)
+		fmt.Printf("seal: preCommit phase 2: %s (%s)\n", sealTimings.PreCommit2, bps(abi.SectorSize(p2in.Size), 1, sealTimings.PreCommit2))
+
+		fmt.Printf("---- \n")
+		fmt.Printf("%v \n", sectorfullname)
+		fmt.Printf("c1in=%v \n", c1in)
 
 		return nil
 	},
 }
-
 var commit1Cmd = &cli.Command{
 	Name: "commit1",
 	Flags: []cli.Flag{
@@ -419,17 +536,69 @@ var commit1Cmd = &cli.Command{
 			Usage: "Path to the storage directory that will store sectors long term",
 		},
 		&cli.StringFlag{
-			Name:  "sector-size",
-			Value: "512MiB",
-			Usage: "size of the sectors in bytes, i.e. 32GiB",
+			Name:  "miner-id",
+			Value: "t01000",
+			Usage: "miner address",
+		},
+		&cli.StringFlag{
+			Name:  "sector-id",
+			Value: "10",
+			Usage: "sector number",
+		},
+		&cli.StringFlag{
+			Name:  "seed",
+			Value: "",
+			Usage: "seed",
+		},
+		&cli.IntFlag{
+			Name:  "seedH",
+			Value: 101,
+			Usage: "seed height",
 		},
 	},
 	Action: func(c *cli.Context) error {
 		// storage-dir
-		tsdir, err := homedir.Expand(c.String("storage-dir"))
+		sdir, err := homedir.Expand(c.String("storage-dir"))
 		if err != nil {
 			return err
 		}
+
+		// sector id
+		sectoridInt, err := units.RAMInBytes(c.String("sector-id"))
+		if err != nil {
+			return err
+		}
+		sectorid := abi.SectorNumber(sectoridInt)
+
+		// miner address
+		//maddr, err := address.NewFromString("t01000")
+		maddr, err := address.NewFromString(c.String("miner-id"))
+		if err != nil {
+			return err
+		}
+		amid, err := address.IDFromAddress(maddr)
+		if err != nil {
+			return err
+		}
+		mid := abi.ActorID(amid)
+
+		// seedH
+		seedH := int64(c.Int64("seedH"))
+		// seed
+		var seedStr = c.String("seed")
+		if len(seedStr) != 64 {
+			return xerrors.Errorf("seed len is fault.")
+		}
+		seedHex, err := hex.DecodeString(seedStr)
+		if err != nil {
+			return err
+		}
+		seed := lapi.SealSeed{
+			Epoch: abi.ChainEpoch(seedH),
+			Value: seedHex[:],
+		}
+
+		var sectorfullname = "s-" + c.String("miner-id") + "-" + c.String("sector-id")
 
 		// read p1in
 		inb, err := ioutil.ReadFile("p1in.json")
@@ -476,28 +645,28 @@ var commit1Cmd = &cli.Command{
 
 		sid := storage.SectorRef{
 			ID: abi.SectorID{
-				Miner:  abi.ActorID(c1in.Miner),
-				Number: abi.SectorNumber(c1in.Number),
+				Miner:  mid,      //abi.ActorID(1000),
+				Number: sectorid, //abi.SectorNumber(10),
 			},
-			ProofType: spt(abi.SectorSize(c1in.Size)),
+			ProofType: spt(abi.SectorSize(p1in.Size)),
 		}
 
+		// config proofs
 		sbfs := &basicfs.Provider{
-			Root: tsdir,
+			Root: sdir,
 		}
-
 		sb, err := ffiwrapper.New(sbfs)
 		if err != nil {
 			return err
 		}
 
+		var sealTimings SealingResult
+		commit1Start := time.Now()
+
 		// start SealCommit1
 		log.Infof("[%d] Generating PoRep for sector (1)", 1)
 		pieces := []abi.PieceInfo{pi}
-		seed := lapi.SealSeed{
-			Epoch: 101,
-			Value: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 255},
-		}
+
 		Unsealed, err := cid.Decode(c1in.Unsealed)
 		if err != nil {
 			return err
@@ -506,20 +675,29 @@ var commit1Cmd = &cli.Command{
 		if err != nil {
 			return err
 		}
+
 		cids := storage.SectorCids{
 			Unsealed: Unsealed,
 			Sealed:   Sealed,
 		}
+
 		ticket := p2in.Ticket
+
+		log.Infof("commit1Cmd sid=%v ", sid)
+		//log.Infof("commit1Cmd ticket-hex=%v", ticket)
+		log.Infof("commit1Cmd seed=%v seed-hex=%v", seedStr, seed.Value)
+		log.Infof("commit1Cmd pieces=%v", pieces)
+		log.Infof("commit1Cmd cids=%v", cids)
+
 		c1o, err := sb.SealCommit1(context.TODO(), sid, ticket, seed.Value, pieces, cids)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(c1o)
+		sealcommit1 := time.Now()
 
 		c2in := Commit2In{
-			SectorNum:  int64(1),
+			SectorNum:  int64(sectorid),
 			Phase1Out:  c1o,
 			SectorSize: c1in.Size,
 		}
@@ -530,8 +708,423 @@ var commit1Cmd = &cli.Command{
 		}
 
 		if err := ioutil.WriteFile("c2in.json", b, 0664); err != nil {
-			log.Warnf("%+v", err)
+			return err
 		}
+
+		sealTimings.Commit1 = sealcommit1.Sub(commit1Start)
+		fmt.Printf("----\nresults (v28) (%d)\n", c1in.Size)
+		fmt.Printf("seal: commit phase 1: %s (%s)\n", sealTimings.Commit1, bps(abi.SectorSize(c1in.Size), 1, sealTimings.Commit1))
+
+		fmt.Printf("---- \n")
+		fmt.Printf("%v \n", sectorfullname)
+		fmt.Printf("pieces=%v \n", pieces)
+		//fmt.Printf("ticket=%v \n", ticket)
+		fmt.Printf("seed=%v \n", seedStr)
+		fmt.Printf("cids=%v \n", cids)
+
+		return nil
+	},
+}
+var commit2Cmd = &cli.Command{
+	Name:      "commit2",
+	Usage:     "Benchmark a proof computation",
+	ArgsUsage: "[c2in.json]",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "no-gpu",
+			Usage: "disable gpu usage for the benchmark run",
+		},
+		&cli.StringFlag{
+			Name:  "miner-id",
+			Usage: "miner address",
+			Value: "t01000",
+		},
+	},
+	Action: func(c *cli.Context) error {
+		if c.Bool("no-gpu") {
+			err := os.Setenv("BELLMAN_NO_GPU", "1")
+			if err != nil {
+				return xerrors.Errorf("setting no-gpu flag: %w", err)
+			}
+		}
+
+		// miner address
+		//maddr, err := address.NewFromString("t01000")
+		maddr, err := address.NewFromString(c.String("miner-id"))
+		if err != nil {
+			return err
+		}
+		amid, err := address.IDFromAddress(maddr)
+		if err != nil {
+			return err
+		}
+		mid := abi.ActorID(amid)
+
+		// read c2in
+		// if !c.Args().Present() {
+		// 	return xerrors.Errorf("Usage: lotus-bench commit2 [c2in.json]")
+		// }
+		var c2in_json = c.Args().First()
+		if c2in_json == "" {
+			c2in_json = "c2in.json"
+		}
+		inb, err := ioutil.ReadFile(c2in_json)
+		if err != nil {
+			return xerrors.Errorf("reading input file: %w", err)
+		}
+
+		var c2in Commit2In
+		if err := json.Unmarshal(inb, &c2in); err != nil {
+			return xerrors.Errorf("unmarshalling input file: %w", err)
+		}
+
+		if err := paramfetch.GetParams(lcli.ReqContext(c), build.ParametersJSON(), c2in.SectorSize); err != nil {
+			return xerrors.Errorf("getting params: %w", err)
+		}
+
+		sb, err := ffiwrapper.New(nil)
+		if err != nil {
+			return err
+		}
+
+		//var sectorfullname = "s-" + c.String("miner-id") + "-" + c.String("sector-id")
+
+		log.Infof("[%d] Generating PoRep for sector (2)", 1)
+		log.Infof("commit2Cmd c2in.SectorNum %v", c2in.SectorNum)
+		fmt.Printf("----\nstart proof computation\n")
+
+		ref := storage.SectorRef{
+			ID: abi.SectorID{
+				Miner:  abi.ActorID(mid),
+				Number: abi.SectorNumber(c2in.SectorNum),
+			},
+			ProofType: spt(abi.SectorSize(c2in.SectorSize)),
+		}
+
+		var sealTimings SealingResult
+		commit2Start := time.Now()
+
+		proof, err := sb.SealCommit2(context.TODO(), ref, c2in.Phase1Out)
+		if err != nil {
+			return err
+		}
+
+		sealCommit2 := time.Now()
+
+		fmt.Printf("proof: %x\n", proof)
+
+		sealTimings.Commit2 = sealCommit2.Sub(commit2Start)
+		fmt.Printf("----\nresults (v28) (%d)\n", c2in.SectorSize)
+		fmt.Printf("seal: commit phase 2: %s (%s)\n", sealTimings.Commit2, bps(abi.SectorSize(c2in.SectorSize), 1, sealTimings.Commit2))
+
+		//fmt.Printf("---- \n")
+		//fmt.Printf("%v \n", sectorfullname)
+
+		return nil
+	},
+}
+
+// recovery
+var recoveryCmd = &cli.Command{
+	Name: "recovery",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "storage-dir",
+			Value: "~/.lotus-bench",
+			Usage: "Path to the storage directory that will store sectors long term",
+		},
+		&cli.StringFlag{
+			Name:  "sector-size",
+			Value: "2KiB",
+			Usage: "size of the sectors in bytes, i.e. 32GiB",
+		},
+		&cli.StringFlag{
+			Name:  "miner-id",
+			Value: "t01000",
+			Usage: "miner address",
+		},
+		&cli.StringFlag{
+			Name:  "sector-id",
+			Value: "10",
+			Usage: "sector number",
+		},
+		&cli.StringFlag{
+			Name:  "ticket",
+			Value: "",
+			Usage: "ticket",
+		},
+		&cli.StringFlag{
+			Name:  "seed",
+			Value: "",
+			Usage: "seed",
+		},
+		&cli.IntFlag{
+			Name:  "seedH",
+			Value: 101,
+			Usage: "seed height",
+		},
+		&cli.BoolFlag{
+			Name:  "save",
+			Usage: "save json (default false)",
+			Value: false,
+		},
+	},
+	Action: func(c *cli.Context) error {
+		// storage-dir
+		sdir, err := homedir.Expand(c.String("storage-dir"))
+		if err != nil {
+			return err
+		}
+		err = os.MkdirAll(sdir, 0775) //nolint:gosec
+		if err != nil {
+			return xerrors.Errorf("creating sectorbuilder dir: %w", err)
+		}
+		// config proofs
+		sbfs := &basicfs.Provider{
+			Root: sdir,
+		}
+		sb, err := ffiwrapper.New(sbfs)
+		if err != nil {
+			return err
+		}
+
+		// sector size
+		sectorSizeInt, err := units.RAMInBytes(c.String("sector-size"))
+		if err != nil {
+			return err
+		}
+		sectorSize := abi.SectorSize(sectorSizeInt)
+
+		// sector id
+		sectoridInt, err := units.RAMInBytes(c.String("sector-id"))
+		if err != nil {
+			return err
+		}
+		sectorid := abi.SectorNumber(sectoridInt)
+
+		// miner address
+		//maddr, err := address.NewFromString("t01000")
+		maddr, err := address.NewFromString(c.String("miner-id"))
+		if err != nil {
+			return err
+		}
+		amid, err := address.IDFromAddress(maddr)
+		if err != nil {
+			return err
+		}
+		mid := abi.ActorID(amid)
+
+		var sectorfullname = "s-" + c.String("miner-id") + "-" + c.String("sector-id")
+
+		// ticket
+		var ticketStr = c.String("ticket")
+		if len(ticketStr) != 64 {
+			return xerrors.Errorf("ticket len is fault.")
+		}
+		ticketHex, err := hex.DecodeString(ticketStr)
+		if err != nil {
+			return err
+		}
+		ticket := abi.SealRandomness(ticketHex[:])
+
+		// seedH
+		seedH := int64(c.Int64("seedH"))
+		// seed
+		var seedStr = c.String("seed")
+		if len(seedStr) != 64 {
+			return xerrors.Errorf("seed len is fault.")
+		}
+		seedHex, err := hex.DecodeString(seedStr)
+		if err != nil {
+			return err
+		}
+		seed := lapi.SealSeed{
+			Epoch: abi.ChainEpoch(seedH),
+			Value: seedHex[:],
+		}
+
+		// save
+		var save_json = c.Bool("save")
+
+		var sealTimings SealingResult
+		start := time.Now()
+
+		// start AddPiece
+		sid := storage.SectorRef{
+			ID: abi.SectorID{
+				Miner:  mid,
+				Number: sectorid,
+			},
+			ProofType: spt(sectorSize),
+		}
+
+		log.Infof("[%d] Writing piece into sector...", 1)
+		log.Infof("recovery addPieceCmd sid=%v", sid)
+
+		pi, err := sb.AddPiece(context.TODO(), sid, nil, abi.PaddedPieceSize(sectorSize).Unpadded(), sealing.NewNullReader(abi.PaddedPieceSize(sectorSize).Unpadded()), "")
+		if err != nil {
+			return err
+		}
+
+		addpiece := time.Now()
+		pc1Start := time.Now()
+
+		if save_json {
+			p1in := PreCommit1In{
+				Size:     uint64(pi.Size),
+				PieceCID: pi.PieceCID.String(),
+			}
+
+			b, err := json.Marshal(&p1in)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile(sectorfullname+"-p1in.json", b, 0664); err != nil {
+				return err
+			}
+		}
+
+		pieces := []abi.PieceInfo{pi}
+		// start PreCommit1
+		log.Infof("[%d] Running replication(1)...", 1)
+
+		log.Infof("recovery preCommit1Cmd sid=%v", sid)
+		log.Infof("recovery preCommit1Cmd ticket=%v ticket-hex=%v", ticketStr, ticket)
+		log.Infof("recovery preCommit1Cmd pieces=%v", pieces)
+
+		pc1o, err := sb.SealPreCommit1(context.TODO(), sid, ticket, pieces)
+
+		if err != nil {
+			return xerrors.Errorf("commit: %w", err)
+		}
+
+		precommit1 := time.Now()
+		pc2Start := time.Now()
+
+		if save_json {
+			p2in := PreCommit2In{
+				Data:   pc1o,
+				Size:   uint64(pi.Size),
+				Ticket: ticket,
+			}
+
+			b, err := json.Marshal(&p2in)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile(sectorfullname+"-p2in.json", b, 0664); err != nil {
+				return err
+			}
+		}
+
+		// start SealPreCommit2
+		log.Infof("[%d] Running replication(2)...", 1)
+
+		log.Infof("recovery preCommit2Cmd sid=%v ", sid)
+		log.Infof("recovery preCommit2Cmd pc1o=%v ", pc1o)
+		cids, err := sb.SealPreCommit2(context.TODO(), sid, pc1o)
+		if err != nil {
+			return xerrors.Errorf("commit: %w", err)
+		}
+
+		precommit2 := time.Now()
+		commit1Start := time.Now()
+
+		if save_json {
+			c1in := Commit1In{
+				Size:     uint64(pi.Size),
+				Unsealed: cids.Unsealed.String(),
+				Sealed:   cids.Sealed.String(),
+			}
+
+			b, err := json.Marshal(&c1in)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile(sectorfullname+"-c1in.json", b, 0664); err != nil {
+				return err
+			}
+		}
+
+		// start SealCommit1
+		log.Infof("[%d] Generating PoRep for sector (1)", 1)
+
+		log.Infof("recovery commit1Cmd sid=%v ", sid)
+		log.Infof("recovery commit1Cmd ticket=%v ticket-hex=%v", ticketStr, ticket)
+		log.Infof("recovery commit1Cmd seed=%v seed-hex=%v", seedStr, seed.Value)
+		log.Infof("recovery commit1Cmd pieces=%v", pieces)
+		log.Infof("recovery commit1Cmd cids=%v", cids)
+		c1o, err := sb.SealCommit1(context.TODO(), sid, ticket, seed.Value, pieces, cids)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("c1o: %x\n", c1o)
+
+		sealcommit1 := time.Now()
+
+		if save_json {
+			c2in := Commit2In{
+				SectorNum:  int64(sectorid),
+				Phase1Out:  c1o,
+				SectorSize: uint64(sectorSize),
+			}
+
+			b, err := json.Marshal(&c2in)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile(sectorfullname+"-c2in.json", b, 0664); err != nil {
+				return err
+			}
+		}
+
+		// commit2Start := time.Now()
+		// // start SealCommit2
+		// log.Infof("[%d] Generating PoRep for sector (2)", 1)
+		//
+		// log.Infof("recovery commit2Cmd sid=%v", sid)
+		// fmt.Printf("----\nstart proof computation\n")
+		// proof, err := sb.SealCommit2(context.TODO(), sid, c1o)
+		// if err != nil {
+		// 	return err
+		// }
+		// sealcommit2 := time.Now()
+		// fmt.Printf("----\nproof: %x\n", proof)
+
+		if !save_json {
+			// clear
+			var fileunsealed = sdir + "/unsealed/" + sectorfullname
+			if err := os.RemoveAll(fileunsealed); err != nil {
+				return xerrors.Errorf("remove existing sector cache from %s (sector %d): %w", fileunsealed, sectoridInt, err)
+			}
+			_ = sb.FinalizeSector(context.TODO(), sid, nil)
+		}
+
+		sealTimings.AddPiece = addpiece.Sub(start)
+		sealTimings.PreCommit1 = precommit1.Sub(pc1Start)
+		sealTimings.PreCommit2 = precommit2.Sub(pc2Start)
+		sealTimings.Commit1 = sealcommit1.Sub(commit1Start)
+		//sealTimings.Commit2 = sealcommit2.Sub(commit2Start)
+		//dur := sealcommit2.Sub(start)
+
+		fmt.Printf("----\nresults (v28) (%d)\n", sectorSize)
+		fmt.Printf("seal: addPiece: %s (%s)\n", sealTimings.AddPiece, bps(abi.SectorSize(sectorSize), 1, sealTimings.AddPiece))
+		fmt.Printf("seal: preCommit phase 1: %s (%s)\n", sealTimings.PreCommit1, bps(abi.SectorSize(sectorSize), 1, sealTimings.PreCommit1))
+		fmt.Printf("seal: preCommit phase 2: %s (%s)\n", sealTimings.PreCommit2, bps(abi.SectorSize(sectorSize), 1, sealTimings.PreCommit2))
+		fmt.Printf("seal: commit phase 1: %s (%s)\n", sealTimings.Commit1, bps(abi.SectorSize(sectorSize), 1, sealTimings.Commit1))
+		//fmt.Printf("seal: commit phase 2: %s (%s)\n", sealTimings.Commit2, bps(abi.SectorSize(sectorSize), 1, sealTimings.Commit2))
+		//fmt.Printf("seal: all stages: %s (%s)\n", dur, bps(abi.SectorSize(sectorSize), 1, dur))
+
+		fmt.Printf("----\n")
+		fmt.Printf("%v \n", sectorfullname)
+		fmt.Printf("pieces=%v \n", pieces)
+		fmt.Printf("ticket=%v \n", ticketStr)
+		fmt.Printf("seed=%v \n", seedStr)
+		fmt.Printf("cids=%v \n", cids)
 
 		return nil
 	},
@@ -947,7 +1540,9 @@ func runSeals(sb *ffiwrapper.Sealer, sbfs *basicfs.Provider, numSectors int, par
 
 		r := rand.New(rand.NewSource(100 + int64(i)))
 
+		// pledge <group>
 		pi, err := sb.AddPiece(context.TODO(), sid, nil, abi.PaddedPieceSize(sectorSize).Unpadded(), r, "")
+
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1121,89 +1716,6 @@ func runSeals(sb *ffiwrapper.Sealer, sbfs *basicfs.Provider, numSectors int, par
 	return sealTimings, sealedSectors, nil
 }
 
-var proveCmd = &cli.Command{
-	Name:      "prove",
-	Usage:     "Benchmark a proof computation",
-	ArgsUsage: "[input.json]",
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "no-gpu",
-			Usage: "disable gpu usage for the benchmark run",
-		},
-		&cli.StringFlag{
-			Name:  "miner-addr",
-			Usage: "pass miner address (only necessary if using existing sectorbuilder)",
-			Value: "t01000",
-		},
-	},
-	Action: func(c *cli.Context) error {
-		if c.Bool("no-gpu") {
-			err := os.Setenv("BELLMAN_NO_GPU", "1")
-			if err != nil {
-				return xerrors.Errorf("setting no-gpu flag: %w", err)
-			}
-		}
-
-		if !c.Args().Present() {
-			return xerrors.Errorf("Usage: lotus-bench prove [input.json]")
-		}
-
-		inb, err := ioutil.ReadFile(c.Args().First())
-		if err != nil {
-			return xerrors.Errorf("reading input file: %w", err)
-		}
-
-		var c2in Commit2In
-		if err := json.Unmarshal(inb, &c2in); err != nil {
-			return xerrors.Errorf("unmarshalling input file: %w", err)
-		}
-
-		if err := paramfetch.GetParams(lcli.ReqContext(c), build.ParametersJSON(), c2in.SectorSize); err != nil {
-			return xerrors.Errorf("getting params: %w", err)
-		}
-
-		maddr, err := address.NewFromString(c.String("miner-addr"))
-		if err != nil {
-			return err
-		}
-		mid, err := address.IDFromAddress(maddr)
-		if err != nil {
-			return err
-		}
-
-		sb, err := ffiwrapper.New(nil)
-		if err != nil {
-			return err
-		}
-
-		ref := storage.SectorRef{
-			ID: abi.SectorID{
-				Miner:  abi.ActorID(mid),
-				Number: abi.SectorNumber(c2in.SectorNum),
-			},
-			ProofType: spt(abi.SectorSize(c2in.SectorSize)),
-		}
-
-		fmt.Printf("----\nstart proof computation\n")
-		start := time.Now()
-
-		proof, err := sb.SealCommit2(context.TODO(), ref, c2in.Phase1Out)
-		if err != nil {
-			return err
-		}
-
-		sealCommit2 := time.Now()
-
-		fmt.Printf("proof: %x\n", proof)
-
-		fmt.Printf("----\nresults (v28) (%d)\n", c2in.SectorSize)
-		dur := sealCommit2.Sub(start)
-
-		fmt.Printf("seal: commit phase 2: %s (%s)\n", dur, bps(abi.SectorSize(c2in.SectorSize), 1, dur))
-		return nil
-	},
-}
-
 func bps(sectorSize abi.SectorSize, sectorNum int, d time.Duration) string {
 	bdata := new(big.Int).SetUint64(uint64(sectorSize))
 	bdata = bdata.Mul(bdata, big.NewInt(int64(sectorNum)))
@@ -1213,10 +1725,11 @@ func bps(sectorSize abi.SectorSize, sectorNum int, d time.Duration) string {
 }
 
 func spt(ssize abi.SectorSize) abi.RegisteredSealProof {
-	spt, err := miner.SealProofTypeFromSectorSize(ssize, build.NewestNetworkVersion)
+	spt, err := miner.SealProofTypeFromSectorSize(ssize, 3)
 	if err != nil {
 		panic(err)
 	}
+	log.Infof("spt  ssize=%v  build.NewestNetworkVersion=%v  spt=%v", ssize, 3, spt)
 
 	return spt
 }
