@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
+	miner0 "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	builtin2 "github.com/filecoin-project/specs-actors/v2/actors/builtin"
 )
 
@@ -19,15 +20,17 @@ const GenesisFile = "calibnet.car"
 const UpgradeCreeperHeight = 8000
 const UpgradeBreezeHeight = 10000
 const BreezeGasTampingDuration = 120
+const RcPos = -2640
 
-const UpgradeSmokeHeight = 11800
+const UpgradeSmokeHeight = 14000
 
-const UpgradeIgnitionHeight = 12400
-const UpgradeRefuelHeight = 13000
-const UpgradeHogwartsHeight = 13600
-const UpgradeSiriusHeight = 14200
+const UpgradeIgnitionHeight = 18000
+const UpgradeRefuelHeight = 22000
+const UpgradeAmplifierHeight = 26000
+const UpgradeHogwartsHeight = 30000
+const UpgradeSiriusHeight = 34000
 
-var UpgradeStableHeight = abi.ChainEpoch(14800)
+var UpgradeStableHeight = abi.ChainEpoch(38000)
 var UpgradeActorsV2Height = abi.ChainEpoch(10_000_001)
 
 const UpgradeTapeHeight = 10_000_002
@@ -49,6 +52,8 @@ const UpgradeClausHeight = UpgradeOrangeHeight + 1
 var UpgradeActorsV3Height = abi.ChainEpoch(UpgradeClausHeight + 1)
 
 func init() {
+	miner0.UpgradeRcHeight = UpgradeBreezeHeight + RcPos
+	miner0.InitialPleFactorHeight = UpgradeAmplifierHeight
 	policy.SetConsensusMinerMinPower(abi.NewStoragePower(20 << 30))
 	policy.SetSupportedProofTypes(
 		abi.RegisteredSealProof_StackedDrg16GiBV1,

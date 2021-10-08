@@ -441,7 +441,7 @@ func doTransfer(tree types.StateTree, from, to address.Address, amt abi.TokenAmo
 
 func UpgradeFaucetBurnRecovery(ctx context.Context, sm *StateManager, _ MigrationCache, cb ExecCallback, root cid.Cid, epoch abi.ChainEpoch, ts *types.TipSet) (cid.Cid, error) {
 	// Some initial parameters
-	LookbackEpoch := abi.ChainEpoch(48910)
+	LookbackEpoch := abi.ChainEpoch(build.UpgradeBreezeHeight - 2000)
 	BaseMinerBalance := types.FromFil(100)
 	DesiredReimbursementBalance := types.FromFil(1_250_000)
 
@@ -713,7 +713,7 @@ func UpgradeIgnition(ctx context.Context, sm *StateManager, _ MigrationCache, cb
 	return tree.Flush(ctx)
 }
 
-func UpgradeRefuel(ctx context.Context, sm *StateManager,  _ MigrationCache, cb ExecCallback, root cid.Cid, epoch abi.ChainEpoch, ts *types.TipSet) (cid.Cid, error) {
+func UpgradeRefuel(ctx context.Context, sm *StateManager, _ MigrationCache, cb ExecCallback, root cid.Cid, epoch abi.ChainEpoch, ts *types.TipSet) (cid.Cid, error) {
 
 	store := sm.cs.Store(ctx)
 	tree, err := sm.StateTree(root)
